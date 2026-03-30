@@ -1,0 +1,618 @@
+@import url("https://fonts.googleapis.com/css2?family=Creepster&family=Special+Elite&family=Share+Tech+Mono&family=Inter:wght@300;400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ARCADE Brand Theme (orange + red + ember black) */
+    --background: 10 38% 6%;
+    --foreground: 35 30% 92%;
+
+    --card: 12 32% 10%;
+    --card-foreground: 35 30% 92%;
+
+    --popover: 10 34% 9%;
+    --popover-foreground: 35 30% 92%;
+
+    --primary: 29 95% 52%;
+    --primary-foreground: 14 60% 8%;
+
+    --secondary: 9 34% 15%;
+    --secondary-foreground: 32 30% 88%;
+
+    --muted: 10 24% 14%;
+    --muted-foreground: 20 10% 63%;
+
+    --accent: 4 82% 44%;
+    --accent-foreground: 20 30% 95%;
+
+    --destructive: 0 80% 50%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 10 28% 24%;
+    --input: 10 28% 16%;
+    --ring: 29 95% 52%;
+
+    --radius: 0.375rem;
+
+    /* Custom ARCADE tokens */
+    --blood: 4 82% 44%;
+    --blood-glow: 4 95% 56%;
+    --toxic: 29 95% 52%;
+    --toxic-glow: 31 100% 60%;
+    --bone: 31 35% 90%;
+    --rust: 20 75% 38%;
+    --biohazard: 37 98% 54%;
+    --legendary-gold: 39 98% 58%;
+    --epic-purple: 4 70% 50%;
+    --rare-blue: 19 90% 60%;
+
+    --font-display: "Creepster", cursive;
+    --font-body: "Inter", sans-serif;
+    --font-mono: "Share Tech Mono", monospace;
+    --font-flavor: "Special Elite", cursive;
+
+    --sidebar-background: 10 34% 9%;
+    --sidebar-foreground: 35 30% 92%;
+    --sidebar-primary: 29 95% 52%;
+    --sidebar-primary-foreground: 14 60% 8%;
+    --sidebar-accent: 10 30% 14%;
+    --sidebar-accent-foreground: 35 30% 92%;
+    --sidebar-border: 10 28% 23%;
+    --sidebar-ring: 29 95% 52%;
+
+    /* Rarity colors */
+    --rarity-ordinary: 18 20% 48%;
+    --rarity-rare: 18 82% 58%;
+    --rarity-epic: 4 70% 52%;
+    --rarity-legendary: 39 98% 58%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+    background-image:
+      radial-gradient(
+        1200px 600px at 20% -10%,
+        hsl(31 100% 60% / 0.14),
+        transparent 60%
+      ),
+      radial-gradient(
+        900px 500px at 100% 0%,
+        hsl(4 90% 55% / 0.12),
+        transparent 55%
+      ),
+      radial-gradient(
+        700px 350px at 50% 100%,
+        hsl(20 90% 45% / 0.1),
+        transparent 60%
+      );
+    background-attachment: fixed;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: 0.05em;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+  .font-flavor {
+    font-family: var(--font-flavor);
+  }
+  .font-mono-arcade {
+    font-family: var(--font-mono);
+  }
+
+  .text-toxic {
+    color: hsl(var(--toxic));
+  }
+  .text-blood {
+    color: hsl(var(--blood));
+  }
+  .text-bone {
+    color: hsl(var(--bone));
+  }
+  .text-biohazard {
+    color: hsl(var(--biohazard));
+  }
+
+  .bg-toxic {
+    background-color: hsl(var(--toxic));
+  }
+  .bg-blood {
+    background-color: hsl(var(--blood));
+  }
+
+  .border-toxic {
+    border-color: hsl(var(--toxic));
+  }
+  .border-blood {
+    border-color: hsl(var(--blood));
+  }
+  .border-rarity-ordinary {
+    border-color: hsl(var(--rarity-ordinary));
+  }
+  .border-rarity-rare {
+    border-color: hsl(var(--rarity-rare));
+  }
+  .border-rarity-epic {
+    border-color: hsl(var(--rarity-epic));
+  }
+  .border-rarity-legendary {
+    border-color: hsl(var(--rarity-legendary));
+  }
+
+  .glow-toxic {
+    box-shadow:
+      0 0 15px hsl(var(--toxic-glow) / 0.4),
+      0 0 30px hsl(var(--toxic-glow) / 0.1);
+  }
+  .glow-blood {
+    box-shadow:
+      0 0 15px hsl(var(--blood-glow) / 0.4),
+      0 0 30px hsl(var(--blood-glow) / 0.1);
+  }
+  .glow-legendary {
+    box-shadow:
+      0 0 20px hsl(var(--legendary-gold) / 0.5),
+      0 0 40px hsl(var(--legendary-gold) / 0.2);
+  }
+
+  .bg-scanline {
+    background-image: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      hsl(20 90% 65% / 0.03) 2px,
+      hsl(20 90% 65% / 0.03) 4px
+    );
+  }
+
+  .panel-ember {
+    background: linear-gradient(
+      150deg,
+      hsl(12 35% 12% / 0.96),
+      hsl(10 30% 8% / 0.94)
+    );
+    border: 1px solid hsl(var(--border));
+    backdrop-filter: blur(8px);
+  }
+
+  .book-stage {
+    perspective: 1800px;
+    perspective-origin: 50% 42%;
+    display: flex;
+    justify-content: center;
+  }
+
+  .book-shell {
+    @apply h-full w-full rounded-2xl;
+    transform-style: preserve-3d;
+    position: relative;
+    overflow: hidden;
+    background:
+      linear-gradient(145deg, hsl(10 38% 14%), hsl(8 42% 7%)),
+      radial-gradient(
+        100% 220% at 50% -20%,
+        hsl(35 80% 55% / 0.08),
+        transparent 65%
+      );
+    border: 1px solid hsl(var(--border));
+    box-shadow:
+      0 25px 70px hsl(0 0% 0% / 0.6),
+      inset 0 1px 0 hsl(35 70% 85% / 0.08),
+      inset 0 0 0 2px hsl(20 40% 20% / 0.35);
+    padding: 1rem;
+    max-width: 610px;
+  }
+
+  .book-shell-draggable {
+    cursor: grab;
+    touch-action: pan-y;
+  }
+
+  .book-shell-draggable:active {
+    cursor: grabbing;
+  }
+
+  .book-spread {
+    @apply h-full grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0.75rem;
+  }
+
+  .book-page-slot {
+    position: relative;
+    min-width: 0;
+    z-index: 1;
+  }
+
+  .book-page {
+    @apply rounded-xl p-3 md:p-4;
+    background: linear-gradient(165deg, hsl(38 22% 80%), hsl(33 18% 68%));
+    border: 1px solid hsl(30 22% 42% / 0.8);
+    box-shadow:
+      inset 0 0 18px hsl(20 30% 20% / 0.22),
+      inset 0 0 60px hsl(35 50% 90% / 0.06);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .book-page::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 20px,
+      hsl(28 20% 50% / 0.07) 20px,
+      hsl(28 20% 50% / 0.07) 21px
+    );
+    pointer-events: none;
+  }
+
+  .book-page-left::after,
+  .book-page-right::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 18px;
+    pointer-events: none;
+  }
+
+  .book-page-left::after {
+    right: -2px;
+    background: linear-gradient(to right, transparent, hsl(12 20% 10% / 0.25));
+  }
+
+  .book-page-right::after {
+    left: -2px;
+    background: linear-gradient(to left, transparent, hsl(12 20% 10% / 0.25));
+  }
+
+  .book-gutter {
+    width: 14px;
+    border-radius: 999px;
+    background: radial-gradient(
+      circle at 50% 50%,
+      hsl(25 60% 14%),
+      hsl(8 45% 6%)
+    );
+    box-shadow:
+      inset 0 0 8px hsl(0 0% 0% / 0.6),
+      0 0 16px hsl(0 0% 0% / 0.35);
+  }
+
+  .book-page-grid {
+    @apply h-full grid grid-rows-2 gap-3 md:gap-4;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    align-items: center;
+  }
+
+  .book-flip-sheet {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+    pointer-events: none;
+    z-index: 80;
+  }
+
+  .book-flip-face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform: translateZ(2px);
+  }
+
+  .book-flip-face-back {
+    transform: rotateY(180deg) translateZ(2px);
+  }
+
+  .book-card-slot-empty {
+    @apply rounded-lg w-full;
+    width: min(100%, 235px);
+    max-width: none;
+    aspect-ratio: 68 / 100;
+    border: 1px dashed hsl(20 20% 35% / 0.5);
+    background: repeating-linear-gradient(
+      -45deg,
+      hsl(25 20% 62% / 0.25),
+      hsl(25 20% 62% / 0.25) 8px,
+      transparent 8px,
+      transparent 16px
+    );
+  }
+
+  .book-card-face {
+    @apply w-full rounded-md p-1 text-left;
+    width: min(100%, 235px);
+    max-width: none;
+    aspect-ratio: 68 / 100;
+    background: hsl(0 0% 6%);
+    border: 2px solid hsl(0 0% 20%);
+    box-shadow:
+      0 6px 20px hsl(0 0% 0% / 0.35),
+      inset 0 0 0 1px hsl(0 0% 60% / 0.22);
+    display: grid;
+    grid-template-rows: auto 1fr auto auto;
+    gap: 0.22rem;
+  }
+
+  .book-card-header {
+    @apply grid text-[8px] md:text-[9px] font-semibold;
+    grid-template-columns: 44px 1fr 62px;
+    gap: 1px;
+  }
+
+  .book-card-header span {
+    @apply bg-zinc-100 text-zinc-900 text-center rounded-sm py-[1px];
+    border: 1px solid hsl(0 0% 12%);
+    font-family: var(--font-mono);
+    letter-spacing: 0.06em;
+  }
+
+  .book-card-art {
+    @apply relative rounded-sm overflow-hidden;
+    min-height: 96px;
+    border: 2px solid hsl(0 0% 85% / 0.8);
+    background: linear-gradient(180deg, hsl(220 60% 32%), hsl(220 45% 18%));
+  }
+
+  .book-card-art-fallback {
+    @apply h-full w-full flex items-center justify-center text-3xl md:text-4xl;
+    color: hsl(0 0% 96% / 0.4);
+  }
+
+  .book-card-locked-overlay {
+    @apply absolute inset-0 flex flex-col items-center justify-center gap-1 text-zinc-200;
+    background: hsl(0 0% 0% / 0.6);
+  }
+
+  .book-card-rarity {
+    @apply absolute left-1.5 top-1.5 text-[8px] md:text-[9px] text-black font-bold px-1.5 py-[1px] rounded-sm;
+    letter-spacing: 0.08em;
+    border: 1px solid hsl(0 0% 10% / 0.7);
+  }
+
+  .book-card-qty {
+    @apply absolute right-1.5 top-1.5 text-[10px] text-zinc-100 font-bold px-1.5 py-[1px] rounded-sm;
+    background: hsl(var(--accent));
+    border: 1px solid hsl(0 0% 100% / 0.25);
+  }
+
+  .book-card-text {
+    @apply rounded-sm px-2 py-1 text-[9px] md:text-[10px] text-zinc-900;
+    min-height: 66px;
+    border: 2px solid hsl(348 58% 45%);
+    background: hsl(220 12% 86%);
+    line-height: 1.35;
+  }
+
+  .book-card-type {
+    @apply text-[8px] md:text-[9px] mb-1 uppercase;
+    font-family: var(--font-mono);
+    letter-spacing: 0.08em;
+    color: hsl(0 0% 25%);
+  }
+
+  .book-card-footer {
+    @apply flex items-center justify-between px-1 text-[9px] md:text-[10px];
+  }
+
+  .card-unowned {
+    filter: grayscale(100%) brightness(0.5);
+  }
+  .card-owned {
+    filter: none;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+}
+
+/* Coffre opening animation */
+@keyframes coffre-shake {
+  0%,
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+  10% {
+    transform: rotate(-3deg) scale(1.02);
+  }
+  20% {
+    transform: rotate(3deg) scale(1.04);
+  }
+  30% {
+    transform: rotate(-5deg) scale(1.06);
+  }
+  40% {
+    transform: rotate(5deg) scale(1.08);
+  }
+  50% {
+    transform: rotate(-7deg) scale(1.1);
+  }
+  60% {
+    transform: rotate(7deg) scale(1.12);
+  }
+  70% {
+    transform: rotate(-5deg) scale(1.14);
+  }
+  80% {
+    transform: rotate(5deg) scale(1.15);
+  }
+  90% {
+    transform: rotate(-3deg) scale(1.1);
+  }
+}
+
+@keyframes card-reveal {
+  0% {
+    transform: rotateY(180deg) scale(0.5);
+    opacity: 0;
+  }
+  60% {
+    transform: rotateY(20deg) scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: rotateY(0deg) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 5px hsl(var(--toxic-glow) / 0.3);
+  }
+  50% {
+    box-shadow:
+      0 0 20px hsl(var(--toxic-glow) / 0.6),
+      0 0 40px hsl(var(--toxic-glow) / 0.2);
+  }
+}
+
+@keyframes ember-float {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translateY(-8px);
+    opacity: 0.7;
+  }
+}
+
+.animate-coffre-shake {
+  animation: coffre-shake 1.5s ease-in-out;
+}
+.animate-card-reveal {
+  animation: card-reveal 0.8s ease-out forwards;
+}
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+.animate-ember-float {
+  animation: ember-float 3s ease-in-out infinite;
+}
+
+@media (max-width: 900px) {
+  .book-shell {
+    padding: 0.7rem;
+    max-width: 520px;
+  }
+
+  .book-spread {
+    gap: 0.5rem;
+  }
+
+  .book-gutter {
+    width: 8px;
+  }
+
+  .book-card-face,
+  .book-card-slot-empty {
+    max-width: 200px;
+  }
+
+  .book-card-header {
+    grid-template-columns: 38px 1fr 50px;
+  }
+
+  .book-card-text {
+    min-height: 56px;
+  }
+}
+
+@media (max-width: 767px) {
+  .book-stage {
+    min-height: 560px;
+  }
+
+  .book-shell {
+    padding: 0.42rem;
+    max-width: 332px;
+  }
+
+  .book-spread {
+    gap: 0.32rem;
+    grid-template-columns: 1fr 6px 1fr;
+  }
+
+  .book-page {
+    padding: 0.34rem;
+    border-radius: 0.55rem;
+  }
+
+  .book-page-grid {
+    gap: 0.3rem;
+  }
+
+  .book-card-face,
+  .book-card-slot-empty {
+    width: min(100%, 118px);
+  }
+
+  .book-card-header {
+    grid-template-columns: 27px 1fr 35px;
+  }
+
+  .book-card-header span {
+    font-size: 6px;
+    padding: 0;
+  }
+
+  .book-card-art {
+    min-height: 64px;
+  }
+
+  .book-card-text {
+    min-height: 43px;
+    padding: 0.22rem 0.3rem;
+    font-size: 7px;
+    line-height: 1.2;
+  }
+
+  .book-card-type {
+    font-size: 6px;
+    margin-bottom: 1px;
+  }
+
+  .book-card-rarity,
+  .book-card-qty,
+  .book-card-footer {
+    font-size: 7px;
+  }
+
+  .book-card-footer {
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+}
