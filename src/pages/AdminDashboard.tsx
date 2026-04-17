@@ -7,19 +7,20 @@ import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
   Shield, Users, Package, Compass, Zap, ScrollText, Megaphone,
-  Plus, Minus, Crown, AlertTriangle, Settings, Trophy, ShoppingBag,
+  Plus, Minus, Crown, AlertTriangle, Settings, Trophy,
   BarChart3, UserCog, Eye, Undo2
 } from "lucide-react";
 
 export default function AdminDashboard() {
   const [searchParams] = useSearchParams();
-  const validTabs = ["teams", "coffres", "quests", "cards", "points", "activations", "settings", "announce", "analytics", "shoppers"];
+  const validTabs = ["teams", "coffres", "points", "activations", "settings", "announce", "analytics"];
   const tabParam = searchParams.get("tab") || "teams";
   const activeTab = validTabs.includes(tabParam) ? tabParam : "teams";
 
@@ -31,14 +32,11 @@ export default function AdminDashboard() {
 
       {activeTab === "teams" && <AdminTeams />}
       {activeTab === "coffres" && <AdminCoffres />}
-      {activeTab === "quests" && <AdminQuests />}
-      {activeTab === "cards" && <AdminCards />}
       {activeTab === "points" && <AdminPoints />}
       {activeTab === "activations" && <AdminActivationLog />}
       {activeTab === "settings" && <AdminSettings />}
       {activeTab === "announce" && <AdminAnnouncements />}
       {activeTab === "analytics" && <AdminAnalytics />}
-      {activeTab === "shoppers" && <AdminShopperAccounts />}
     </div>
   );
 }
@@ -83,7 +81,6 @@ function AdminTeams() {
     await supabase.from("teams").update({ is_winner: true }).eq("id", teamId);
     await supabase.from("platform_settings").update({ value: "true" as any }).eq("key", "winner_declared");
     await supabase.from("platform_settings").update({ value: JSON.stringify(teamId) as any }).eq("key", "winner_team_id");
-    await supabase.from("platform_settings").update({ value: false as any }).eq("key", "trading_window_open");
     await supabase.from("platform_settings").update({ value: false as any }).eq("key", "activation_window_open");
 
     const winnerTeam = teams.find((t: any) => t.id === teamId);
@@ -144,7 +141,8 @@ function AdminTeams() {
             <div>
               {editingTeamId === team.id ? (
                 <div className="flex items-center gap-2">
-                  <Input value={editingName} onChange={(e) => setEditingName(e.target.value)} className="h-8" />
+                  <label htmlFor={`teamName-${team.id}`} className="sr-only">Team Name</label>
+                  <Input id={`teamName-${team.id}`} value={editingName} onChange={(e) => setEditingName(e.target.value)} className="h-8" />
                   <Button size="sm" onClick={() => saveTeamName(team.id)}>Save</Button>
                   <Button size="sm" variant="outline" onClick={() => { setEditingTeamId(null); setEditingName(""); }}>Cancel</Button>
                 </div>
@@ -235,25 +233,8 @@ function AdminCoffres() {
     const tier = tiers.find((t: any) => t.id === selectedTier);
     if (!tier) return;
 
-    const { data: settings } = await supabase
-      .from("platform_settings")
-      .select("key, value")
-      .in("key", ["fairness_boost_threshold", "fairness_boost_multiplier"]);
-
-    const threshold = Number(settings?.find((s: any) => s.key === "fairness_boost_threshold")?.value ?? 5);
-    const multiplier = Number(settings?.find((s: any) => s.key === "fairness_boost_multiplier")?.value ?? 2);
-
-    const { data: circulation } = await supabase
-      .from("team_cards")
-      .select("card_id, quantity");
-
-    const globalCounts: Record<string, number> = {};
-    (circulation || []).forEach((r: any) => {
-      globalCounts[r.card_id] = (globalCounts[r.card_id] || 0) + Number(r.quantity || 0);
-    });
-
     // Generate cards based on tier weights
-    const generatedCards = generateCoffreCards(tier as any, cards, globalCounts, threshold, multiplier);
+    const generatedCards = generateCoffreCards(tier as any, cards);
 
     // Create coffre
     const { data: coffre } = await supabase.from("coffres").insert({
@@ -325,9 +306,9 @@ function AdminCoffres() {
   return (
     <div className="space-y-4 mt-4">
       <div>
-        <label className="text-sm font-flavor mb-1 block">Team</label>
+        <Label htmlFor="coffreTeam" className="font-flavor">Team</Label>
         <Select value={selectedTeam} onValueChange={setSelectedTeam}>
-          <SelectTrigger><SelectValue placeholder="Select team..." /></SelectTrigger>
+          <SelectTrigger id="coffreTeam" className="mt-1"><SelectValue placeholder="Select team..." /></SelectTrigger>
           <SelectContent>
             {teams.map((t: any) => (
               <SelectItem key={t.id} value={t.id}>{t.team_name}</SelectItem>
@@ -336,9 +317,9 @@ function AdminCoffres() {
         </Select>
       </div>
       <div>
-        <label className="text-sm font-flavor mb-1 block">Coffre Tier</label>
+        <Label htmlFor="coffreTier" className="font-flavor">Coffre Tier</Label>
         <Select value={selectedTier} onValueChange={loadTierEditor}>
-          <SelectTrigger><SelectValue placeholder="Select tier..." /></SelectTrigger>
+          <SelectTrigger id="coffreTier" className="mt-1"><SelectValue placeholder="Select tier..." /></SelectTrigger>
           <SelectContent>
             {tiers.map((t: any) => (
               <SelectItem key={t.id} value={t.id}>{t.name} ({t.card_count} cards)</SelectItem>
@@ -347,8 +328,8 @@ function AdminCoffres() {
         </Select>
       </div>
       <div>
-        <label className="text-sm font-flavor mb-1 block">Source (e.g. game name)</label>
-        <Input value={sourceLabel} onChange={(e) => setSourceLabel(e.target.value)} placeholder="Mini-game #1" />
+        <Label htmlFor="sourceLabel" className="font-flavor">Source (e.g. game name)</Label>
+        <Input id="sourceLabel" value={sourceLabel} onChange={(e) => setSourceLabel(e.target.value)} placeholder="Mini-game #1" className="mt-1" />
       </div>
       <Button onClick={awardCoffre} disabled={!selectedTeam || !selectedTier} className="w-full">
         <Package className="w-4 h-4 mr-2" /> Award Coffre
@@ -357,12 +338,27 @@ function AdminCoffres() {
       {selectedTier && (
         <div className="bg-card border border-border rounded-lg p-4 space-y-3">
           <h3 className="font-display text-lg">Edit Tier Template</h3>
-          <Input type="number" value={tierCardCount} onChange={(e) => setTierCardCount(e.target.value)} placeholder="Card count" />
+          <div>
+            <Label htmlFor="tierCardCount" className="font-flavor">Card Count</Label>
+            <Input id="tierCardCount" type="number" value={tierCardCount} onChange={(e) => setTierCardCount(e.target.value)} placeholder="Card count" className="mt-1" />
+          </div>
           <div className="grid grid-cols-2 gap-2">
-            <Input type="number" value={tierOrd} onChange={(e) => setTierOrd(e.target.value)} placeholder="Ordinary weight" />
-            <Input type="number" value={tierRare} onChange={(e) => setTierRare(e.target.value)} placeholder="Rare weight" />
-            <Input type="number" value={tierEpic} onChange={(e) => setTierEpic(e.target.value)} placeholder="Epic weight" />
-            <Input type="number" value={tierLegendary} onChange={(e) => setTierLegendary(e.target.value)} placeholder="Legendary weight" />
+            <div>
+              <Label htmlFor="tierOrd" className="font-flavor text-xs">Ordinary Weight</Label>
+              <Input id="tierOrd" type="number" value={tierOrd} onChange={(e) => setTierOrd(e.target.value)} placeholder="Ordinary weight" className="mt-1" />
+            </div>
+            <div>
+              <Label htmlFor="tierRare" className="font-flavor text-xs">Rare Weight</Label>
+              <Input id="tierRare" type="number" value={tierRare} onChange={(e) => setTierRare(e.target.value)} placeholder="Rare weight" className="mt-1" />
+            </div>
+            <div>
+              <Label htmlFor="tierEpic" className="font-flavor text-xs">Epic Weight</Label>
+              <Input id="tierEpic" type="number" value={tierEpic} onChange={(e) => setTierEpic(e.target.value)} placeholder="Epic weight" className="mt-1" />
+            </div>
+            <div>
+              <Label htmlFor="tierLegendary" className="font-flavor text-xs">Legendary Weight</Label>
+              <Input id="tierLegendary" type="number" value={tierLegendary} onChange={(e) => setTierLegendary(e.target.value)} placeholder="Legendary weight" className="mt-1" />
+            </div>
           </div>
           <Button onClick={saveTierTemplate}>Save Tier Template</Button>
         </div>
@@ -374,9 +370,6 @@ function AdminCoffres() {
 function generateCoffreCards(
   tier: any,
   cards: any[],
-  globalCounts: Record<string, number>,
-  threshold: number,
-  multiplier: number,
 ): string[] {
   const result: string[] = [];
   const weights = {
@@ -396,287 +389,12 @@ function generateCoffreCards(
     }
     const rarityCards = cards.filter((c: any) => c.rarity === selectedRarity && !c.is_mandatory);
     if (rarityCards.length > 0) {
-      const pool = rarityCards.map((c: any) => ({
-        card: c,
-        score: (globalCounts[c.id] || 0) < threshold ? multiplier : 1,
-      }));
-      const scoreTotal = pool.reduce((sum: number, item: any) => sum + item.score, 0);
-      let pick = Math.random() * scoreTotal;
-      let chosen = pool[0].card;
-      for (const item of pool) {
-        pick -= item.score;
-        if (pick <= 0) {
-          chosen = item.card;
-          break;
-        }
-      }
-      result.push(chosen.id);
+      result.push(rarityCards[Math.floor(Math.random() * rarityCards.length)].id);
     } else if (cards.length > 0) {
       result.push(cards[Math.floor(Math.random() * cards.length)].id);
     }
   }
   return result;
-}
-
-function AdminQuests() {
-  const queryClient = useQueryClient();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [theme, setTheme] = useState("");
-  const [maxSlots, setMaxSlots] = useState("5");
-  const [rewardCardId, setRewardCardId] = useState("");
-
-  const { data: quests = [] } = useQuery({
-    queryKey: ["admin-quests"],
-    queryFn: async () => {
-      const { data } = await supabase.from("side_quests").select("*, quest_teams(*, teams(team_name))").order("created_at");
-      return data || [];
-    },
-  });
-
-  const { data: cards = [] } = useQuery({
-    queryKey: ["mandatory-cards"],
-    queryFn: async () => {
-      const { data } = await supabase.from("cards").select("id, name").eq("is_mandatory", true);
-      return data || [];
-    },
-  });
-
-  const createQuest = async () => {
-    await supabase.from("side_quests").insert({
-      title, description, theme,
-      max_slots: parseInt(maxSlots),
-      reward_card_id: rewardCardId || null,
-      is_published: true,
-    });
-    toast.success("Quest created!");
-    setTitle(""); setDescription(""); setTheme(""); setMaxSlots("5"); setRewardCardId("");
-    queryClient.invalidateQueries({ queryKey: ["admin-quests"] });
-  };
-
-  const validateCompletion = async (questTeamId: string) => {
-    const { error } = await (supabase as any).rpc("validate_quest_completion_atomic", {
-      p_quest_team_id: questTeamId,
-    });
-    if (error) {
-      toast.error(error.message || "Validation failed");
-      return;
-    }
-
-    toast.success("Quest completion validated!");
-    queryClient.invalidateQueries({ queryKey: ["admin-quests"] });
-    queryClient.invalidateQueries({ queryKey: ["coffres"] });
-  };
-
-  return (
-    <div className="space-y-6 mt-4">
-      <div className="bg-card border border-border rounded-lg p-4 space-y-3">
-        <h3 className="font-display text-lg">Create Quest</h3>
-        <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
-        <Textarea placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
-        <Input placeholder="Theme" value={theme} onChange={(e) => setTheme(e.target.value)} />
-        <Input type="number" placeholder="Max slots" value={maxSlots} onChange={(e) => setMaxSlots(e.target.value)} />
-        <Select value={rewardCardId} onValueChange={setRewardCardId}>
-          <SelectTrigger><SelectValue placeholder="Reward card..." /></SelectTrigger>
-          <SelectContent>
-            {cards.map((c: any) => (
-              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button onClick={createQuest} disabled={!title}>Create Quest</Button>
-      </div>
-
-      <div className="space-y-3">
-        <h3 className="font-display text-lg">Active Quests</h3>
-        {quests.map((quest: any) => (
-          <div key={quest.id} className="bg-card border border-border rounded-lg p-3">
-            <p className="font-bold">{quest.title} ({quest.slots_filled}/{quest.max_slots})</p>
-            {quest.quest_teams?.filter((qt: any) => qt.status === "in_progress").map((qt: any) => (
-              <div key={qt.id} className="flex items-center justify-between mt-2 pl-2 border-l border-toxic">
-                <span className="text-sm">{qt.teams?.team_name} — In Progress</span>
-                <Button size="sm" onClick={() => validateCompletion(qt.id)}>
-                  Validate
-                </Button>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function AdminCards() {
-  const queryClient = useQueryClient();
-  const [editingCard, setEditingCard] = useState<any>(null);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [cardType, setCardType] = useState("enhancement");
-  const [rarity, setRarity] = useState("ordinary");
-  const [pointValue, setPointValue] = useState("0");
-  const [isMandatory, setIsMandatory] = useState(false);
-  const [hintContent, setHintContent] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [combineGroupId, setCombineGroupId] = useState("");
-  const [combineResultContent, setCombineResultContent] = useState("");
-
-  const { data: cards = [] } = useQuery({
-    queryKey: ["admin-cards"],
-    queryFn: async () => {
-      const { data } = await supabase.from("cards").select("*").order("sort_order");
-      return data || [];
-    },
-  });
-
-  const saveCard = async () => {
-    const cardData = {
-      name, description, card_type: cardType as any, rarity: rarity as any,
-      point_value: parseInt(pointValue), is_mandatory: isMandatory,
-      hint_content: hintContent || null,
-      image_url: imageUrl || null,
-      combine_group_id: combineGroupId || null,
-      combine_result_content: combineResultContent || null,
-      sort_order: editingCard ? editingCard.sort_order : cards.length,
-    };
-
-    if (editingCard) {
-      await supabase.from("cards").update(cardData).eq("id", editingCard.id);
-      toast.success("Card updated!");
-    } else {
-      await supabase.from("cards").insert(cardData);
-      toast.success("Card created!");
-    }
-
-    resetForm();
-    queryClient.invalidateQueries({ queryKey: ["admin-cards"] });
-  };
-
-  const resetForm = () => {
-    setEditingCard(null); setName(""); setDescription(""); setCardType("enhancement");
-    setRarity("ordinary"); setPointValue("0"); setIsMandatory(false); setHintContent("");
-    setImageUrl(""); setCombineGroupId(""); setCombineResultContent("");
-  };
-
-  const uploadImage = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image must be 5MB or smaller");
-      return;
-    }
-
-    const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-    const baseName = file.name.replace(/\.[^/.]+$/, "");
-    const safeName = baseName.replace(/[^a-zA-Z0-9._-]/g, "-");
-    const path = `cards/${Date.now()}-${safeName}.${ext}`;
-
-    setUploadingImage(true);
-    const { error } = await supabase.storage.from("card-images").upload(path, file, {
-      cacheControl: "3600",
-      upsert: false,
-    });
-    setUploadingImage(false);
-
-    if (error) {
-      toast.error(error.message || "Upload failed");
-      return;
-    }
-
-    const { data } = supabase.storage.from("card-images").getPublicUrl(path);
-    setImageUrl(data.publicUrl);
-    toast.success("Image uploaded");
-  };
-
-  const startEdit = (card: any) => {
-    setEditingCard(card); setName(card.name); setDescription(card.description);
-    setCardType(card.card_type); setRarity(card.rarity); setPointValue(String(card.point_value));
-    setIsMandatory(card.is_mandatory); setHintContent(card.hint_content || "");
-    setImageUrl(card.image_url || "");
-    setCombineGroupId(card.combine_group_id || "");
-    setCombineResultContent(card.combine_result_content || "");
-  };
-
-  return (
-    <div className="space-y-4 mt-4">
-      <div className="bg-card border border-border rounded-lg p-4 space-y-3">
-        <h3 className="font-display text-lg">{editingCard ? "Edit Card" : "Add Card"}</h3>
-        <Input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-        <Textarea placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
-        <Input
-          type="file"
-          accept="image/*"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void uploadImage(file);
-            e.currentTarget.value = "";
-          }}
-          disabled={uploadingImage}
-        />
-        {uploadingImage && <p className="text-xs text-muted-foreground">Uploading image...</p>}
-        <Input placeholder="Image URL" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
-        {imageUrl && (
-          <div className="border border-border rounded-lg p-2 space-y-2">
-            <p className="text-xs text-muted-foreground">Image preview</p>
-            <img
-              src={imageUrl}
-              alt="Card preview"
-              className="w-full max-h-52 object-contain rounded-md bg-secondary/30"
-            />
-            <Button type="button" variant="outline" size="sm" onClick={() => setImageUrl("")}>Remove Image</Button>
-          </div>
-        )}
-        <div className="grid grid-cols-2 gap-2">
-          <Select value={cardType} onValueChange={setCardType}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {["enhancement", "manipulation", "penalizing", "protection", "recovery", "economic", "hint_single", "hint_combined", "mandatory"].map(t => (
-                <SelectItem key={t} value={t}>{t.replace("_", " ")}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={rarity} onValueChange={setRarity}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {["ordinary", "rare", "epic", "legendary"].map(r => (
-                <SelectItem key={r} value={r}>{r}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <Input type="number" placeholder="Point value" value={pointValue} onChange={(e) => setPointValue(e.target.value)} />
-        {(cardType === "hint_single" || cardType === "hint_combined") && (
-          <Textarea placeholder="Hint content" value={hintContent} onChange={(e) => setHintContent(e.target.value)} />
-        )}
-        <Input placeholder="Combine group ID (optional)" value={combineGroupId} onChange={(e) => setCombineGroupId(e.target.value)} />
-        <Textarea placeholder="Combined result content (optional)" value={combineResultContent} onChange={(e) => setCombineResultContent(e.target.value)} />
-        <div className="flex items-center gap-2">
-          <Switch checked={isMandatory} onCheckedChange={setIsMandatory} />
-          <label className="text-sm">Mandatory card</label>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={saveCard} disabled={!name}>{editingCard ? "Update" : "Create"}</Button>
-          {editingCard && <Button variant="outline" onClick={resetForm}>Cancel</Button>}
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <h3 className="font-display text-lg">Card Catalogue ({cards.length})</h3>
-        {cards.map((card: any) => (
-          <div key={card.id} className="bg-card border border-border rounded-lg p-3 flex items-center justify-between cursor-pointer hover:bg-secondary/50" onClick={() => startEdit(card)}>
-            <div>
-              <p className="font-bold text-sm">{card.name} {card.is_mandatory && <span className="text-blood">★</span>}</p>
-              <p className="text-xs text-muted-foreground capitalize">{card.rarity} • {card.card_type.replace("_", " ")} • {card.point_value}pts</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 function AdminPoints() {
@@ -777,8 +495,14 @@ function AdminPoints() {
           ))}
         </SelectContent>
       </Select>
-      <Input type="number" placeholder="Points" value={amount} onChange={(e) => setAmount(e.target.value)} />
-      <Input placeholder="Reason" value={reason} onChange={(e) => setReason(e.target.value)} />
+      <div>
+        <Label htmlFor="pointsAmount" className="font-flavor">Points</Label>
+        <Input id="pointsAmount" type="number" placeholder="Points" value={amount} onChange={(e) => setAmount(e.target.value)} className="mt-1" />
+      </div>
+      <div>
+        <Label htmlFor="pointsReason" className="font-flavor">Reason</Label>
+        <Input id="pointsReason" placeholder="Reason" value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1" />
+      </div>
       <div className="flex gap-2">
         <Button onClick={() => adjustPoints(true)} disabled={!selectedTeam || !amount || !reason} className="flex-1">
           <Plus className="w-4 h-4 mr-1" /> Add
@@ -790,32 +514,47 @@ function AdminPoints() {
 
       <div className="border-t border-border pt-4 space-y-3">
         <h3 className="font-display text-lg">Bulk Points by Rank</h3>
-        <Input placeholder="Game/round label" value={gameLabel} onChange={(e) => setGameLabel(e.target.value)} />
+        <div>
+          <Label htmlFor="gameLabel" className="font-flavor">Game/Round Label</Label>
+          <Input id="gameLabel" placeholder="Game/round label" value={gameLabel} onChange={(e) => setGameLabel(e.target.value)} className="mt-1" />
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           <Select value={rank1Team} onValueChange={setRank1Team}>
             <SelectTrigger><SelectValue placeholder="Rank 1 Team" /></SelectTrigger>
             <SelectContent>{teams.map((t: any) => <SelectItem key={`r1-${t.id}`} value={t.id}>{t.team_name}</SelectItem>)}</SelectContent>
           </Select>
-          <Input type="number" placeholder="Rank 1 points" value={rank1Pts} onChange={(e) => setRank1Pts(e.target.value)} />
+          <div>
+            <Label htmlFor="rank1Points" className="font-flavor text-xs">Rank 1 Points</Label>
+            <Input id="rank1Points" type="number" placeholder="Rank 1 points" value={rank1Pts} onChange={(e) => setRank1Pts(e.target.value)} className="mt-1" />
+          </div>
 
           <Select value={rank2Team} onValueChange={setRank2Team}>
             <SelectTrigger><SelectValue placeholder="Rank 2 Team" /></SelectTrigger>
             <SelectContent>{teams.map((t: any) => <SelectItem key={`r2-${t.id}`} value={t.id}>{t.team_name}</SelectItem>)}</SelectContent>
           </Select>
-          <Input type="number" placeholder="Rank 2 points" value={rank2Pts} onChange={(e) => setRank2Pts(e.target.value)} />
+          <div>
+            <Label htmlFor="rank2Points" className="font-flavor text-xs">Rank 2 Points</Label>
+            <Input id="rank2Points" type="number" placeholder="Rank 2 points" value={rank2Pts} onChange={(e) => setRank2Pts(e.target.value)} className="mt-1" />
+          </div>
 
           <Select value={rank3Team} onValueChange={setRank3Team}>
             <SelectTrigger><SelectValue placeholder="Rank 3 Team" /></SelectTrigger>
             <SelectContent>{teams.map((t: any) => <SelectItem key={`r3-${t.id}`} value={t.id}>{t.team_name}</SelectItem>)}</SelectContent>
           </Select>
-          <Input type="number" placeholder="Rank 3 points" value={rank3Pts} onChange={(e) => setRank3Pts(e.target.value)} />
+          <div>
+            <Label htmlFor="rank3Points" className="font-flavor text-xs">Rank 3 Points</Label>
+            <Input id="rank3Points" type="number" placeholder="Rank 3 points" value={rank3Pts} onChange={(e) => setRank3Pts(e.target.value)} className="mt-1" />
+          </div>
 
           <Select value={rank4Team} onValueChange={setRank4Team}>
             <SelectTrigger><SelectValue placeholder="Rank 4 Team" /></SelectTrigger>
             <SelectContent>{teams.map((t: any) => <SelectItem key={`r4-${t.id}`} value={t.id}>{t.team_name}</SelectItem>)}</SelectContent>
           </Select>
-          <Input type="number" placeholder="Rank 4 points" value={rank4Pts} onChange={(e) => setRank4Pts(e.target.value)} />
+          <div>
+            <Label htmlFor="rank4Points" className="font-flavor text-xs">Rank 4 Points</Label>
+            <Input id="rank4Points" type="number" placeholder="Rank 4 points" value={rank4Pts} onChange={(e) => setRank4Pts(e.target.value)} className="mt-1" />
+          </div>
         </div>
 
         <Button onClick={applyBulkResults} className="w-full">
@@ -925,8 +664,6 @@ function AdminActivationLog() {
 
 function AdminSettings() {
   const queryClient = useQueryClient();
-  const [fairnessThreshold, setFairnessThreshold] = useState("");
-  const [fairnessMultiplier, setFairnessMultiplier] = useState("");
   const { data: settings = [] } = useQuery({
     queryKey: ["admin-settings"],
     queryFn: async () => {
@@ -935,32 +672,42 @@ function AdminSettings() {
     },
   });
 
-  const getSetting = (key: string) => {
+  const getSetting = (key: string, defaultValue: any = null) => {
     const s = settings.find((s: any) => s.key === key);
-    return s?.value;
+    const value = s?.value;
+
+    if (value === null || value === undefined) return defaultValue;
+
+    if (typeof defaultValue === "boolean") {
+      if (typeof value === "boolean") return value;
+      if (typeof value === "number") return value !== 0;
+      if (typeof value === "string") {
+        const normalized = value.trim().toLowerCase();
+        if (["true", "1", "yes", "on"].includes(normalized)) return true;
+        if (["false", "0", "no", "off"].includes(normalized)) return false;
+      }
+      return Boolean(value);
+    }
+
+    return value;
   };
 
   const toggleSetting = async (key: string) => {
-    const current = getSetting(key);
-    const newVal = current === true ? false : true;
+    const current = getSetting(key, false);
+    const newVal = !current;
     await supabase.from("platform_settings").update({ value: newVal as any }).eq("key", key);
 
-    if (key === "trading_window_open" || key === "ranking_visible") {
+    if (key === "ranking_visible") {
       const { data: teams } = await supabase.from("teams").select("id, user_id");
       if (teams?.length) {
-        const isTrading = key === "trading_window_open";
-        const title = isTrading
-          ? (newVal ? "Trading Window Open" : "Trading Window Closed")
-          : (newVal ? "Rankings Visible" : "Rankings Hidden");
-        const message = isTrading
-          ? (newVal ? "You can now submit trading requests." : "Trading is currently closed by admin.")
-          : (newVal ? "Rankings are now visible." : "Rankings have been hidden by admin.");
+        const title = newVal ? "Rankings Visible" : "Rankings Hidden";
+        const message = newVal ? "Rankings are now visible." : "Rankings have been hidden by admin.";
 
         await supabase.from("notifications").insert(
           teams.map((t: any) => ({
             user_id: t.user_id,
             team_id: t.id,
-            type: isTrading ? ("shop_window" as any) : ("ranking_visibility" as any),
+            type: "ranking_visibility" as any,
             title,
             message,
           })),
@@ -975,16 +722,8 @@ function AdminSettings() {
   const boolSettings = [
     { key: "registration_open", label: "Registration Open", icon: Users },
     { key: "ranking_visible", label: "Rankings Visible", icon: Trophy },
-    { key: "trading_window_open", label: "Trading Window", icon: ShoppingBag },
     { key: "activation_window_open", label: "Card Activations", icon: Zap },
   ];
-
-  const saveFairness = async () => {
-    await supabase.from("platform_settings").update({ value: Number(fairnessThreshold || 0) as any }).eq("key", "fairness_boost_threshold");
-    await supabase.from("platform_settings").update({ value: Number(fairnessMultiplier || 0) as any }).eq("key", "fairness_boost_multiplier");
-    queryClient.invalidateQueries({ queryKey: ["admin-settings"] });
-    toast.success("Fairness settings updated");
-  };
 
   return (
     <div className="space-y-3 mt-4">
@@ -994,26 +733,9 @@ function AdminSettings() {
             <Icon className="w-4 h-4 text-toxic" />
             <span className="font-flavor">{label}</span>
           </div>
-          <Switch checked={getSetting(key) === true} onCheckedChange={() => toggleSetting(key)} />
+          <Switch checked={getSetting(key, false)} onCheckedChange={() => toggleSetting(key)} />
         </div>
       ))}
-
-      <div className="bg-card border border-border rounded-lg p-3 space-y-2">
-        <p className="text-sm font-flavor">Fairness Boost</p>
-        <Input
-          type="number"
-          placeholder={`Threshold (${getSetting("fairness_boost_threshold") ?? 5})`}
-          value={fairnessThreshold}
-          onChange={(e) => setFairnessThreshold(e.target.value)}
-        />
-        <Input
-          type="number"
-          placeholder={`Multiplier (${getSetting("fairness_boost_multiplier") ?? 2})`}
-          value={fairnessMultiplier}
-          onChange={(e) => setFairnessMultiplier(e.target.value)}
-        />
-        <Button onClick={saveFairness}>Save Fairness Config</Button>
-      </div>
     </div>
   );
 }
@@ -1047,8 +769,14 @@ function AdminAnnouncements() {
   return (
     <div className="space-y-4 mt-4">
       <div className="bg-card border border-border rounded-lg p-4 space-y-3">
-        <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
-        <Textarea placeholder="Announcement content..." value={content} onChange={(e) => setContent(e.target.value)} />
+        <div>
+          <Label htmlFor="announcementTitle" className="font-flavor">Title</Label>
+          <Input id="announcementTitle" placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1" />
+        </div>
+        <div>
+          <Label htmlFor="announcementContent" className="font-flavor">Content</Label>
+          <Textarea id="announcementContent" placeholder="Announcement content..." value={content} onChange={(e) => setContent(e.target.value)} className="mt-1" />
+        </div>
         <Button onClick={broadcast} disabled={!title || !content} className="w-full">
           <Megaphone className="w-4 h-4 mr-2" /> Broadcast
         </Button>
@@ -1070,10 +798,9 @@ function AdminAnalytics() {
   const { data: analytics } = useQuery({
     queryKey: ["admin-analytics"],
     queryFn: async () => {
-      const [{ data: cards }, { data: activations }, { data: quests }, { data: teams }] = await Promise.all([
+      const [{ data: cards }, { data: activations }, { data: teams }] = await Promise.all([
         supabase.from("team_cards").select("quantity, cards(rarity)"),
         supabase.from("card_activations").select("card_rarity, created_at"),
-        supabase.from("quest_teams").select("status"),
         supabase.from("teams").select("team_name, points"),
       ]);
 
@@ -1088,15 +815,9 @@ function AdminAnalytics() {
         activationTotals[a.card_rarity] = (activationTotals[a.card_rarity] || 0) + 1;
       });
 
-      const questStatus: Record<string, number> = { in_progress: 0, completed: 0, reward_claimed: 0 };
-      (quests || []).forEach((q: any) => {
-        questStatus[q.status] = (questStatus[q.status] || 0) + 1;
-      });
-
       return {
         rarityTotals,
         activationTotals,
-        questStatus,
         teams: teams || [],
       };
     },
@@ -1123,10 +844,8 @@ function AdminAnalytics() {
           ))}
         </div>
         <div className="bg-card border border-border rounded-lg p-3">
-          <p className="font-bold text-sm mb-2">Quest status</p>
-          {Object.entries(analytics?.questStatus || {}).map(([status, count]) => (
-            <p key={status} className="text-xs capitalize">{status.replace("_", " ")}: {count as number}</p>
-          ))}
+          <p className="font-bold text-sm mb-2">Gameplay Scope</p>
+          <p className="text-xs">Missions and Mini-Games are active.</p>
         </div>
       </div>
 
@@ -1138,117 +857,6 @@ function AdminAnalytics() {
             <span>{t.points} pts</span>
           </div>
         ))}
-      </div>
-    </div>
-  );
-}
-
-function AdminShopperAccounts() {
-  const { user } = useAuth();
-  const [email, setEmail] = useState("");
-  const [overrideTeamId, setOverrideTeamId] = useState("");
-  const [overrideCardId, setOverrideCardId] = useState("");
-  const [overrideDelta, setOverrideDelta] = useState("1");
-  const [overrideReason, setOverrideReason] = useState("");
-
-  const { data: shoppers = [], refetch } = useQuery({
-    queryKey: ["admin-shopper-accounts"],
-    queryFn: async () => {
-      const { data } = await supabase.from("user_roles").select("user_id, role").eq("role", "shopper");
-      return data || [];
-    },
-  });
-
-  const { data: teams = [] } = useQuery({
-    queryKey: ["admin-override-teams"],
-    queryFn: async () => {
-      const { data } = await supabase.from("teams").select("id, team_name, user_id").order("team_name");
-      return data || [];
-    },
-  });
-
-  const { data: cards = [] } = useQuery({
-    queryKey: ["admin-override-cards"],
-    queryFn: async () => {
-      const { data } = await supabase.from("cards").select("id, name").order("name");
-      return data || [];
-    },
-  });
-
-  const setShopper = async (enable: boolean) => {
-    if (!email.trim()) return;
-    const { error } = await (supabase as any).rpc("admin_set_shopper_role", {
-      p_email: email.trim(),
-      p_enable: enable,
-    });
-    if (error) {
-      toast.error(error.message || "Failed to update shopper role");
-      return;
-    }
-    toast.success(enable ? "Shopper role granted" : "Shopper role removed");
-    setEmail("");
-    refetch();
-  };
-
-  const runOverride = async () => {
-    if (!overrideTeamId || !overrideCardId || !overrideReason.trim()) {
-      toast.error("Team, card and justification are required");
-      return;
-    }
-    const delta = Number(overrideDelta || 0);
-    if (!delta) {
-      toast.error("Delta must be non-zero");
-      return;
-    }
-
-    const { error } = await (supabase as any).rpc("admin_apply_card_override", {
-      p_team_id: overrideTeamId,
-      p_card_id: overrideCardId,
-      p_delta: delta,
-      p_reason: overrideReason.trim(),
-    });
-    if (error) {
-      toast.error(error.message || "Override failed");
-      return;
-    }
-
-    toast.success("Override applied");
-    setOverrideReason("");
-  };
-
-  return (
-    <div className="space-y-4 mt-4">
-      <h3 className="font-display text-lg flex items-center gap-2"><UserCog className="w-5 h-5" /> Shopper Accounts</h3>
-      <Input placeholder="User email" value={email} onChange={(e) => setEmail(e.target.value)} />
-      <div className="flex gap-2">
-        <Button onClick={() => setShopper(true)} className="flex-1">Grant Shopper</Button>
-        <Button variant="destructive" onClick={() => setShopper(false)} className="flex-1">Remove Shopper</Button>
-      </div>
-
-      <div className="bg-card border border-border rounded-lg p-3 space-y-1">
-        <p className="font-bold text-sm">Current shopper users</p>
-        {shoppers.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No shopper accounts configured.</p>
-        ) : (
-          shoppers.map((s: any) => (
-            <p key={s.user_id} className="text-xs font-mono-arcade">{s.user_id}</p>
-          ))
-        )}
-      </div>
-
-      <div className="bg-card border border-border rounded-lg p-3 space-y-2">
-        <p className="font-bold text-sm">Admin Override Card Transaction</p>
-        <Select value={overrideTeamId} onValueChange={setOverrideTeamId}>
-          <SelectTrigger><SelectValue placeholder="Team" /></SelectTrigger>
-          <SelectContent>{teams.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.team_name}</SelectItem>)}</SelectContent>
-        </Select>
-        <Select value={overrideCardId} onValueChange={setOverrideCardId}>
-          <SelectTrigger><SelectValue placeholder="Card" /></SelectTrigger>
-          <SelectContent>{cards.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-        </Select>
-        <Input type="number" value={overrideDelta} onChange={(e) => setOverrideDelta(e.target.value)} placeholder="Delta (+/-)" />
-        <Textarea value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} placeholder="Justification (required)" />
-        <Button onClick={runOverride} variant="destructive" className="w-full">Apply Override</Button>
       </div>
     </div>
   );

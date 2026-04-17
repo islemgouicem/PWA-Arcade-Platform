@@ -8,6 +8,7 @@ import { ShoppingBag, ArrowLeftRight, DollarSign, ShoppingCart, Lock, History } 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
@@ -160,9 +161,9 @@ export default function TradingPage() {
 
         <TabsContent value="trade" className="space-y-4 mt-4">
           <div>
-            <label className="text-sm font-flavor mb-1 block">Card to Offer</label>
+            <Label htmlFor="tradeOffer" className="font-flavor">Card to Offer</Label>
             <Select value={tradeOffer} onValueChange={setTradeOffer}>
-              <SelectTrigger><SelectValue placeholder="Select card..." /></SelectTrigger>
+              <SelectTrigger id="tradeOffer" className="mt-1"><SelectValue placeholder="Select card..." /></SelectTrigger>
               <SelectContent>
                 {myCards.map((tc: any) => (
                   <SelectItem key={tc.card_id} value={tc.card_id}>
@@ -173,9 +174,9 @@ export default function TradingPage() {
             </Select>
           </div>
           <div>
-            <label className="text-sm font-flavor mb-1 block">Card You Want</label>
+            <Label htmlFor="tradeWant" className="font-flavor">Card You Want</Label>
             <Select value={tradeWant} onValueChange={setTradeWant}>
-              <SelectTrigger><SelectValue placeholder="Select card..." /></SelectTrigger>
+              <SelectTrigger id="tradeWant" className="mt-1"><SelectValue placeholder="Select card..." /></SelectTrigger>
               <SelectContent>
                 {allCards.map((c: any) => (
                   <SelectItem key={c.id} value={c.id}>{c.name} ({c.rarity})</SelectItem>
@@ -184,9 +185,9 @@ export default function TradingPage() {
             </Select>
           </div>
           <div>
-            <label className="text-sm font-flavor mb-1 block">Target Team (optional)</label>
+            <Label htmlFor="tradeTarget" className="font-flavor">Target Team (optional)</Label>
             <Select value={tradeTarget} onValueChange={setTradeTarget}>
-              <SelectTrigger><SelectValue placeholder="Any team..." /></SelectTrigger>
+              <SelectTrigger id="tradeTarget" className="mt-1"><SelectValue placeholder="Any team..." /></SelectTrigger>
               <SelectContent>
                 {allTeams.map((t: any) => (
                   <SelectItem key={t.id} value={t.id}>{t.team_name}</SelectItem>
@@ -201,9 +202,9 @@ export default function TradingPage() {
 
         <TabsContent value="sell" className="space-y-4 mt-4">
           <div>
-            <label className="text-sm font-flavor mb-1 block">Card to Sell</label>
+            <Label htmlFor="sellCard" className="font-flavor">Card to Sell</Label>
             <Select value={sellCard} onValueChange={setSellCard}>
-              <SelectTrigger><SelectValue placeholder="Select card..." /></SelectTrigger>
+              <SelectTrigger id="sellCard" className="mt-1"><SelectValue placeholder="Select card..." /></SelectTrigger>
               <SelectContent>
                 {myCards.map((tc: any) => (
                   <SelectItem key={tc.card_id} value={tc.card_id}>
@@ -214,12 +215,14 @@ export default function TradingPage() {
             </Select>
           </div>
           <div>
-            <label className="text-sm font-flavor mb-1 block">Asking Price (points)</label>
+            <Label htmlFor="sellPrice" className="font-flavor">Asking Price (points)</Label>
             <Input
+              id="sellPrice"
               type="number"
               value={sellPrice}
               onChange={(e) => setSellPrice(e.target.value)}
               placeholder="100"
+              className="mt-1"
             />
           </div>
           <Button onClick={submitSell} disabled={!sellCard || !sellPrice} className="w-full">
@@ -254,8 +257,8 @@ export default function TradingPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-flavor capitalize">{tx.request_type}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${tx.status === "completed" ? "bg-toxic/20 text-toxic" :
-                      tx.status === "rejected" ? "bg-blood/20 text-blood" :
-                        "bg-biohazard/20 text-biohazard"
+                    tx.status === "rejected" ? "bg-blood/20 text-blood" :
+                      "bg-biohazard/20 text-biohazard"
                     }`}>{tx.status}</span>
                 </div>
                 <p className="text-sm mt-1">

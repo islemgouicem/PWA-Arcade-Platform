@@ -7,13 +7,17 @@ import AppLayout from "@/components/AppLayout";
 import AuthPage from "@/pages/AuthPage";
 import CardBookPage from "@/pages/CardBookPage";
 import GiftsPage from "@/pages/GiftsPage";
-import SideQuestsPage from "@/pages/SideQuestsPage";
 import RankingPage from "@/pages/RankingPage";
-import TradingPage from "@/pages/TradingPage";
 import ShopperPage from "@/pages/ShopperPage";
 import AdminDashboard from "@/pages/AdminDashboard";
 import NotificationsPage from "@/pages/NotificationsPage";
+import MiniGamesPage from "@/pages/MiniGamesPage";
+import MissionsPage from "@/pages/MissionsPage";
+import MiniGameHolderPage from "@/pages/MiniGameHolderPage";
+import MissionResponsiblePage from "@/pages/MissionResponsiblePage";
+import AdminOperationsPage from "@/pages/AdminOperationsPage";
 import NotFound from "@/pages/NotFound";
+import Index from "@/pages/Index";
 
 const queryClient = new QueryClient();
 
@@ -38,22 +42,47 @@ function ShopperRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function MiniGameHolderRoute({ children }: { children: React.ReactNode }) {
+  const { isMiniGameHolder, isAdmin, loading } = useAuth();
+  if (loading) return null;
+  if (!isMiniGameHolder && !isAdmin) return <Navigate to="/card-book" replace />;
+  return <>{children}</>;
+}
+
+function MissionResponsibleRoute({ children }: { children: React.ReactNode }) {
+  const { isMissionResponsible, isAdmin, loading } = useAuth();
+  if (loading) return null;
+  if (!isMissionResponsible && !isAdmin) return <Navigate to="/card-book" replace />;
+  return <>{children}</>;
+}
+
 function AppRoutes() {
-  const { user, loading, isAdmin, isShopper } = useAuth();
-  const homePath = isAdmin ? "/admin?tab=teams" : isShopper ? "/shopper" : "/card-book";
+  const { user, loading, isAdmin, isShopper, isMiniGameHolder, isMissionResponsible } = useAuth();
+  const homePath = isAdmin
+    ? "/admin?tab=teams"
+    : isShopper
+      ? "/shopper"
+      : isMiniGameHolder
+        ? "/mini-game-holder"
+        : isMissionResponsible
+          ? "/mission-responsible"
+          : "/card-book";
 
   return (
     <Routes>
       <Route path="/auth" element={user && !loading ? <Navigate to={homePath} replace /> : <AuthPage />} />
-      <Route path="/" element={<Navigate to={homePath} replace />} />
+      <Route path="/" element={user && !loading ? <Navigate to={homePath} replace /> : <Index />} />
       <Route path="/card-book" element={<ProtectedRoute><CardBookPage /></ProtectedRoute>} />
       <Route path="/gifts" element={<ProtectedRoute><GiftsPage /></ProtectedRoute>} />
-      <Route path="/quests" element={<ProtectedRoute><SideQuestsPage /></ProtectedRoute>} />
+      <Route path="/missions" element={<ProtectedRoute><MissionsPage /></ProtectedRoute>} />
+      <Route path="/mini-games" element={<ProtectedRoute><MiniGamesPage /></ProtectedRoute>} />
       <Route path="/ranking" element={<ProtectedRoute><RankingPage /></ProtectedRoute>} />
       <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
-      <Route path="/trading" element={<ProtectedRoute><TradingPage /></ProtectedRoute>} />
       <Route path="/shopper" element={<ProtectedRoute><ShopperRoute><ShopperPage /></ShopperRoute></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><AdminRoute><AdminDashboard /></AdminRoute></ProtectedRoute>} />
+      <Route path="/admin-ops" element={<ProtectedRoute><AdminRoute><AdminOperationsPage /></AdminRoute></ProtectedRoute>} />
+      <Route path="/mini-game-holder" element={<ProtectedRoute><MiniGameHolderRoute><MiniGameHolderPage /></MiniGameHolderRoute></ProtectedRoute>} />
+      <Route path="/mission-responsible" element={<ProtectedRoute><MissionResponsibleRoute><MissionResponsiblePage /></MissionResponsibleRoute></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

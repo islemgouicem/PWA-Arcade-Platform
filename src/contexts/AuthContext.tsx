@@ -8,6 +8,8 @@ interface Team {
   points: number;
   is_suspended: boolean;
   is_winner: boolean;
+  health_status?: number;
+  suspended_until?: string | null;
 }
 
 interface AuthContextType {
@@ -19,6 +21,8 @@ interface AuthContextType {
   isAdmin: boolean;
   isShopper: boolean;
   isParticipant: boolean;
+  isMiniGameHolder: boolean;
+  isMissionResponsible: boolean;
   signUp: (email: string, password: string, teamName: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -107,11 +111,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAdmin = roles.includes("admin");
   const isShopper = roles.includes("shopper");
   const isParticipant = roles.includes("participant");
+  const isMiniGameHolder = roles.includes("mini_game_holder");
+  const isMissionResponsible = roles.includes("mission_responsible");
 
   return (
     <AuthContext.Provider value={{
       user, session, team, roles, loading,
-      isAdmin, isShopper, isParticipant,
+      isAdmin, isShopper, isParticipant, isMiniGameHolder, isMissionResponsible,
       signUp, signIn, signOut, refreshTeam,
     }}>
       {children}

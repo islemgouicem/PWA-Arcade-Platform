@@ -7,30 +7,28 @@ import { NavLink, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import {
-  Book, Gift, Compass, Trophy, ShoppingBag, Shield, Store,
-  Menu, X, LogOut, Megaphone, Users, Package, ScrollText,
-  Zap, AlertTriangle, Settings, Bell
+  Book, Gift, Trophy, Shield, Store,
+  Menu, X, LogOut, Megaphone, Users, Package,
+  Zap, AlertTriangle, Settings, Bell, Activity, Gamepad2, ClipboardCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const participantLinks = [
   { to: "/card-book", label: "Card Book", icon: Book },
   { to: "/gifts", label: "Get My Gifts", icon: Gift },
-  { to: "/quests", label: "Side Quests", icon: Compass },
+  { to: "/mini-games", label: "Mini Games", icon: Gamepad2 },
+  { to: "/missions", label: "Missions", icon: Activity },
   { to: "/ranking", label: "Rankings", icon: Trophy },
-  { to: "/trading", label: "Trading Post", icon: ShoppingBag },
   { to: "/notifications", label: "Notifications", icon: Bell },
 ];
 
 const adminLinks = [
   { to: "/admin?tab=teams", label: "Teams", icon: Users },
   { to: "/admin?tab=coffres", label: "Coffres", icon: Package },
-  { to: "/admin?tab=quests", label: "Quests", icon: Compass },
-  { to: "/admin?tab=cards", label: "Cards", icon: ScrollText },
   { to: "/admin?tab=points", label: "Points", icon: Zap },
   { to: "/admin?tab=activations", label: "Activation Log", icon: AlertTriangle },
   { to: "/admin?tab=analytics", label: "Analytics", icon: Trophy },
-  { to: "/admin?tab=shoppers", label: "Shopper Accounts", icon: Store },
+  { to: "/admin-ops", label: "Operations Config", icon: Settings },
   { to: "/admin?tab=settings", label: "Settings", icon: Settings },
   { to: "/admin?tab=announce", label: "Announcements", icon: Megaphone },
   { to: "/ranking", label: "Rankings", icon: Trophy },
@@ -43,6 +41,16 @@ const shopperLinks = [
   { to: "/notifications", label: "Notifications", icon: Bell },
 ];
 
+const miniGameHolderLinks = [
+  { to: "/mini-game-holder", label: "Mini-Game Holder", icon: Gamepad2 },
+  { to: "/notifications", label: "Notifications", icon: Bell },
+];
+
+const missionResponsibleLinks = [
+  { to: "/mission-responsible", label: "Mission Responsible", icon: ClipboardCheck },
+  { to: "/notifications", label: "Notifications", icon: Bell },
+];
+
 function isLinkActive(currentPath: string, currentSearch: string, to: string) {
   const [targetPath, targetQuery = ""] = to.split("?");
   if (currentPath !== targetPath) return false;
@@ -51,11 +59,14 @@ function isLinkActive(currentPath: string, currentSearch: string, to: string) {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { team, isAdmin, isShopper, isParticipant, signOut } = useAuth();
+  const { team, isAdmin, isShopper, isParticipant, isMiniGameHolder, isMissionResponsible, signOut } = useAuth();
   const { unreadCount, notifications, markAsRead } = useNotifications();
   const { announcements, dismiss } = useAnnouncements();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const healthPercent = Math.max(0, Math.min(100, Math.round(Number(team?.health_status ?? 100))));
+  const healthHue = Math.round((healthPercent / 100) * 120);
+  const healthColor = `hsl(${healthHue} 85% 48%)`;
 
   const { data: pendingCoffres = [] } = useQuery({
     queryKey: ["coffres", team?.id],
@@ -81,13 +92,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   });
 
   const giftNotifications = isParticipant ? pendingCoffres.length : unreadCount;
-  const navLinks = isAdmin ? adminLinks : isShopper ? shopperLinks : participantLinks;
+  const navLinks = isAdmin
+    ? adminLinks
+    : isShopper
+      ? shopperLinks
+      : isMiniGameHolder
+        ? miniGameHolderLinks
+        : isMissionResponsible
+          ? missionResponsibleLinks
+          : participantLinks;
   const systemBanner = notifications.find(
     (n) => !n.is_read && (n.type === "shop_window" || n.type === "ranking_visibility"),
   );
 
   return (
-    <div className="min-h-screen flex bg-background bg-scanline">
+    <div className="arcade-dashboard-shell min-h-screen flex bg-background bg-scanline">
       {/* Mobile header */}
       <header className="fixed top-0 left-0 right-0 z-40 panel-ember border-b border-border px-4 py-3 flex items-center justify-between md:hidden">
         <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
@@ -119,7 +138,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </AnimatePresence>
 
       {/* Sidebar */}
-      <aside className={`fixed md:sticky top-0 left-0 z-50 h-screen w-64 panel-ember border-r border-border flex flex-col transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}>
+      <aside
+        className={`fixed md:sticky top-0 left-0 z-50 h-[100dvh] md:h-screen w-64 panel-ember border-r border-border flex flex-col transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 12px)" }}
+      >
         <div className="p-4 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
             <img src="/arcade.png" alt="ARCADE event" className="h-8 w-auto" />
@@ -135,10 +157,29 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="px-4 py-3 border-b border-border">
             <p className="font-bold text-sm truncate">{team.team_name}</p>
             <p className="text-xs text-biohazard font-mono-arcade">{team.points} pts</p>
+            <div className="mt-2.5 space-y-1">
+              <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-muted-foreground">
+                <span>Health Status</span>
+                <span className="font-mono-arcade" style={{ color: healthColor }}>
+                  {healthPercent}%
+                </span>
+              </div>
+              <div className="relative h-2.5 overflow-hidden rounded-full border border-border/70 bg-black/35">
+                <div
+                  className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
+                  style={{
+                    width: `${healthPercent}%`,
+                    background: `linear-gradient(90deg, hsl(${Math.max(healthHue - 18, 0)} 92% 40%) 0%, ${healthColor} 55%, hsl(${Math.min(healthHue + 12, 120)} 90% 55%) 100%)`,
+                    boxShadow: `0 0 12px color-mix(in srgb, ${healthColor} 70%, transparent)`,
+                  }}
+                />
+                <div className="pointer-events-none absolute inset-0 opacity-40" style={{ background: "linear-gradient(120deg, transparent 20%, rgba(255,255,255,0.25) 50%, transparent 80%)" }} />
+              </div>
+            </div>
           </div>
         )}
 
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto pb-6 md:pb-3">
           {navLinks.map(({ to, label, icon: Icon }) => {
             const active = isLinkActive(location.pathname, location.search, to);
             return (
@@ -147,7 +188,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 to={to}
                 onClick={() => setSidebarOpen(false)}
                 className={() =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${active ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary"
+                  `arcade-nav-link flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-all ${active ? "arcade-nav-link-active" : "text-foreground hover:bg-secondary"
                   }`
                 }
               >
@@ -175,7 +216,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               to="/admin?tab=teams"
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${isActive ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary"
+                `arcade-nav-link flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-all ${isActive ? "arcade-nav-link-active" : "text-foreground hover:bg-secondary"
                 }`
               }
             >
@@ -185,15 +226,35 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           )}
         </nav>
 
-        <div className="p-3 border-t border-border">
+        <div className="p-3 border-t border-border bg-background/20">
           <Button variant="ghost" className="w-full justify-start text-muted-foreground" onClick={signOut}>
             <LogOut className="w-4 h-4 mr-2" /> Logout
           </Button>
         </div>
+
+        <img
+          src="/target.png"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-3 right-3 w-16 opacity-20"
+        />
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 min-h-screen pt-14 md:pt-0">
+      <main className="relative flex-1 min-h-screen overflow-hidden pt-14 md:pt-0">
+        <img
+          src="/about_soldier.png"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-20 bottom-6 hidden w-72 opacity-[0.08] xl:block"
+        />
+        <img
+          src="/agenda_zombie.png"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute -left-16 top-24 hidden w-52 opacity-[0.08] lg:block"
+        />
+
         {systemBanner && (
           <div className="bg-toxic/15 border-b border-toxic px-4 py-2 flex items-center justify-between">
             <div>
@@ -220,7 +281,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         ))}
 
-        <div className="p-4 md:p-6 max-w-4xl mx-auto">
+        <div className="arcade-inner-panel relative mx-auto max-w-5xl p-4 md:p-6">
           {children}
         </div>
       </main>
