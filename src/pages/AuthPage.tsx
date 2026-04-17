@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { usePlatformSettings } from "@/hooks/use-platform-settings";
 import ArcadeCard from "@/components/arcade_card";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -20,6 +21,7 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuth();
   const { getSetting, loading: settingsLoading } = usePlatformSettings();
+  const isMobile = useIsMobile();
   const isRegistrationOpen = getSetting("registration_open", true);
 
   // Force return to login if registration closes while on register tab
@@ -75,7 +77,7 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-background px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] relative overflow-hidden md:p-4">
       <div className="absolute inset-0 bg-[url('/registeration_1.png')] bg-cover bg-center opacity-24" />
       <div className="absolute inset-0 bg-gradient-to-b from-black/78 via-[#1a0003]/88 to-black/95" />
       <div className="absolute top-12 left-8 h-3 w-3 rounded-full bg-biohazard/70 blur-[1px] animate-ember-float" />
@@ -89,14 +91,14 @@ export default function AuthPage() {
         transition={{ duration: 0.5, ease: "easeOut" }}
         className="w-full max-w-md relative z-10"
       >
-        <div className="text-center mb-8">
+        <div className="text-center mb-6 md:mb-8">
           <motion.div
             initial={{ y: -10, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3, type: "spring" }}
           >
-            <div className="mt-2 inline-flex items-center">
-              <img src="/logo.png" alt="Skill and Tell Scientific Club logo" className="w-[100px]" />
+            <div className="mt-1 mb-2 inline-flex items-center">
+              <img src="/logo.png" alt="Skill and Tell Scientific Club logo" className="w-[150px] md:w-[100px]" />
             </div>
           </motion.div>
           <motion.div
@@ -104,17 +106,18 @@ export default function AuthPage() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.15, type: "spring" }}
           >
-            <img src="/arcade.png" alt="ARCADE event logo" className="w-[260px] max-w-full mx-auto drop-shadow-[0_8px_24px_hsl(var(--blood)/0.35)]" />
+            <img src="/arcade.png" alt="ARCADE event logo" className="w-[300px] max-w-full mx-auto drop-shadow-[0_8px_24px_hsl(var(--blood)/0.35)] md:w-[260px]" />
           </motion.div>
         </div>
 
         <ArcadeCard
-          size="md"
+          size={isMobile ? "sm" : "md"}
           title={isLogin ? "Welcome Back" : "Create Your Squad"}
           icon={<Shield className="h-full w-full" />}
           cardHeight="auto"
+          showCorners={false}
           className="auth-arcade-card"
-          contentPadding="px-5 py-6 sm:px-7 sm:py-7"
+          contentPadding={isMobile ? "px-6 py-10" : "px-5 py-6 sm:px-7 sm:py-7"}
         >
           <div className="pointer-events-none absolute right-5 top-16 hidden lg:block">
             <img src="/target.png" alt="" aria-hidden="true" className="w-20 opacity-20" />
@@ -236,8 +239,8 @@ export default function AuthPage() {
           </form>
         </ArcadeCard>
 
-        <p className="text-center text-muted-foreground text-xs mt-6 font-flavor tracking-wide">
-          Skill&Tell Scientific Club — ARCADE Event Platform
+        <p className="text-center text-white/75 text-xs mt-6 font-flavor tracking-wide">
+          Skill&Tell — ARCADE Event Platform
         </p>
       </motion.div>
     </div>

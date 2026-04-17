@@ -75,6 +75,8 @@ const ArcadeCard = ({
     cornerTopOffset,
     cornerSideOffset,
     cornerScale,
+    showCorners = true,
+    cornerGlow = true,
 }) => {
     const variant = CARD_VARIANTS[size] ?? CARD_VARIANTS.md;
     const resolvedCardHeight = cardHeight ?? variant.cardHeight;
@@ -178,73 +180,77 @@ const ArcadeCard = ({
                     <div className="absolute inset-0 bg-[radial-gradient(100%_65%_at_50%_0%,rgba(203,120,34,0.15),transparent_70%)]" />
                 </div>
 
-                <img
-                    src={resolvedTopRightCorner}
-                    alt=""
-                    aria-hidden="true"
-                    className="pointer-events-none absolute right-0 top-0 hidden select-none sm:block"
-                    style={{
-                        width: resolvedCornerSize,
-                        height: "auto",
-                        opacity: 0.96,
-                        right: resolvedCornerSideOffset,
-                        top: resolvedCornerTopOffset,
-                        transform: `scale(${resolvedCornerScale})`,
-                        transformOrigin: "top right",
-                        filter: "drop-shadow(0 0 14px rgba(203, 120, 34, 0.55))",
-                    }}
-                />
+                {showCorners && (
+                    <>
+                        <img
+                            src={resolvedTopRightCorner}
+                            alt=""
+                            aria-hidden="true"
+                            className="pointer-events-none absolute right-0 top-0 hidden select-none sm:block"
+                            style={{
+                                width: resolvedCornerSize,
+                                height: "auto",
+                                opacity: 0.96,
+                                right: resolvedCornerSideOffset,
+                                top: resolvedCornerTopOffset,
+                                transform: `scale(${resolvedCornerScale})`,
+                                transformOrigin: "top right",
+                                filter: cornerGlow ? "drop-shadow(0 0 14px rgba(203, 120, 34, 0.55))" : "none",
+                            }}
+                        />
 
-                <img
-                    src={resolvedTopRightCornerMobile}
-                    alt=""
-                    aria-hidden="true"
-                    className="pointer-events-none absolute right-0 top-0 select-none sm:hidden"
-                    style={{
-                        width: resolvedMobileCornerSize,
-                        height: "auto",
-                        opacity: 0.96,
-                        right: resolvedMobileCornerSideOffset,
-                        top: resolvedMobileCornerTopOffset,
-                        transform: `scale(${resolvedMobileCornerScale})`,
-                        transformOrigin: "top right",
-                        filter: "drop-shadow(0 0 14px rgba(203, 120, 34, 0.55))",
-                    }}
-                />
+                        <img
+                            src={resolvedTopRightCornerMobile}
+                            alt=""
+                            aria-hidden="true"
+                            className="pointer-events-none absolute right-0 top-0 select-none sm:hidden"
+                            style={{
+                                width: resolvedMobileCornerSize,
+                                height: "auto",
+                                opacity: 0.96,
+                                right: resolvedMobileCornerSideOffset,
+                                top: resolvedMobileCornerTopOffset,
+                                transform: `scale(${resolvedMobileCornerScale})`,
+                                transformOrigin: "top right",
+                                filter: cornerGlow ? "drop-shadow(0 0 14px rgba(203, 120, 34, 0.55))" : "none",
+                            }}
+                        />
 
-                <img
-                    src={resolvedBottomLeftCorner}
-                    alt=""
-                    aria-hidden="true"
-                    className="pointer-events-none absolute bottom-0 left-0 hidden select-none sm:block"
-                    style={{
-                        width: resolvedCornerSize,
-                        height: "auto",
-                        opacity: 0.96,
-                        left: resolvedCornerSideOffset,
-                        bottom: resolvedCornerTopOffset,
-                        transform: `scale(${resolvedCornerScale})`,
-                        transformOrigin: "bottom left",
-                        filter: "drop-shadow(0 0 14px rgba(203, 120, 34, 0.55))",
-                    }}
-                />
+                        <img
+                            src={resolvedBottomLeftCorner}
+                            alt=""
+                            aria-hidden="true"
+                            className="pointer-events-none absolute bottom-0 left-0 hidden select-none sm:block"
+                            style={{
+                                width: resolvedCornerSize,
+                                height: "auto",
+                                opacity: 0.96,
+                                left: resolvedCornerSideOffset,
+                                bottom: resolvedCornerTopOffset,
+                                transform: `scale(${resolvedCornerScale})`,
+                                transformOrigin: "bottom left",
+                                filter: cornerGlow ? "drop-shadow(0 0 14px rgba(203, 120, 34, 0.55))" : "none",
+                            }}
+                        />
 
-                <img
-                    src={resolvedBottomLeftCornerMobile}
-                    alt=""
-                    aria-hidden="true"
-                    className="pointer-events-none absolute bottom-0 left-0 select-none sm:hidden"
-                    style={{
-                        width: resolvedMobileCornerSize,
-                        height: "auto",
-                        opacity: 0.96,
-                        left: resolvedMobileCornerSideOffset,
-                        bottom: resolvedMobileCornerTopOffset,
-                        transform: `scale(${resolvedMobileCornerScale})`,
-                        transformOrigin: "bottom left",
-                        filter: "drop-shadow(0 0 14px rgba(203, 120, 34, 0.55))",
-                    }}
-                />
+                        <img
+                            src={resolvedBottomLeftCornerMobile}
+                            alt=""
+                            aria-hidden="true"
+                            className="pointer-events-none absolute bottom-0 left-0 select-none sm:hidden"
+                            style={{
+                                width: resolvedMobileCornerSize,
+                                height: "auto",
+                                opacity: 0.96,
+                                left: resolvedMobileCornerSideOffset,
+                                bottom: resolvedMobileCornerTopOffset,
+                                transform: `scale(${resolvedMobileCornerScale})`,
+                                transformOrigin: "bottom left",
+                                filter: cornerGlow ? "drop-shadow(0 0 14px rgba(203, 120, 34, 0.55))" : "none",
+                            }}
+                        />
+                    </>
+                )}
 
 
                 {/* Inner content wrapper */}

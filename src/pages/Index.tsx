@@ -32,7 +32,15 @@ export default function Index() {
                 <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/65 to-[#170003]" />
                 <div className="absolute -left-24 top-20 h-72 w-72 rounded-full bg-[#CB7822]/20 blur-[110px]" />
 
-                <div className="relative mx-auto flex min-h-[86vh] max-w-6xl flex-col items-center justify-center px-6 py-20 text-center">
+                <div className="relative mx-auto flex max-w-6xl flex-col items-center justify-center px-6 py-10 text-center">
+                    <motion.img
+                        src="/arcade.png"
+                        alt="Arcade"
+                        className="mb-6 w-[250px] max-w-full drop-shadow-[0_16px_34px_rgba(203,120,34,0.28)] sm:w-[330px]"
+                        initial={{ opacity: 0, y: 14 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.85 }}
+                    />
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -43,14 +51,7 @@ export default function Index() {
                         Congratulations, you made it IN
                     </motion.div>
 
-                    <motion.img
-                        src="/arcade.png"
-                        alt="Arcade"
-                        className="mt-6 w-[250px] max-w-full drop-shadow-[0_16px_34px_rgba(203,120,34,0.28)] sm:w-[330px]"
-                        initial={{ opacity: 0, y: 14 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.85 }}
-                    />
+
 
                     <motion.h1
                         className="mt-8 max-w-3xl font-compacta text-5xl leading-none tracking-[0.08em] text-[#e8ece8] sm:text-6xl"
@@ -58,7 +59,7 @@ export default function Index() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1, duration: 0.8 }}
                     >
-                        Welcome to ARCADE 2026
+                        Welcome to ARCADE'26
                     </motion.h1>
 
                     <motion.p
@@ -67,20 +68,11 @@ export default function Index() {
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.2, duration: 0.8 }}
                     >
-                        This platform is your central hub for the event: mission updates, progress tracking,
-                        and all the actions your team needs during ARCADE. Keep it close, because this is where
+                        This platform is your central hub for the event. Keep it close, because this is where
                         your live game flow happens.
                     </motion.p>
 
-                    <motion.div
-                        className="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs uppercase tracking-[0.14em] text-[#97a79f]"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.35, duration: 0.7 }}
-                    >
-                        <span className="inline-flex items-center gap-2"><Smartphone className="h-4 w-4 text-[#CB7822]" /> PWA Ready</span>
-                        <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-[#CB7822]" /> Browser or Installed App</span>
-                    </motion.div>
+
 
                     <motion.p
                         className="mt-5 max-w-2xl text-sm leading-7 text-[#b4c0b9] sm:text-base"
@@ -92,34 +84,17 @@ export default function Index() {
                         cleaner, faster, and more portable app-like experience.
                     </motion.p>
 
+
+
                     <motion.div
-                        className="mt-7 grid w-full max-w-4xl gap-3 sm:grid-cols-3"
+                        className="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs uppercase tracking-[0.14em] text-[#97a79f]"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4, duration: 0.7 }}
+                        transition={{ delay: 0.35, duration: 0.7 }}
                     >
-                        <div className="rounded-xl border border-[#77867F]/25 bg-black/25 px-4 py-3 text-left">
-                            <p className="text-xs uppercase tracking-[0.14em] text-[#CB7822]">Live Use</p>
-                            <p className="mt-1 text-sm text-[#b6c1ba]">Use it during the event to stay synced with your current game state.</p>
-                        </div>
-                        <div className="rounded-xl border border-[#77867F]/25 bg-black/25 px-4 py-3 text-left">
-                            <p className="text-xs uppercase tracking-[0.14em] text-[#CB7822]">Fast Access</p>
-                            <p className="mt-1 text-sm text-[#b6c1ba]">Open instantly from your home screen without searching for a browser tab.</p>
-                        </div>
-                        <div className="rounded-xl border border-[#77867F]/25 bg-black/25 px-4 py-3 text-left">
-                            <p className="text-xs uppercase tracking-[0.14em] text-[#CB7822]">Better Focus</p>
-                            <p className="mt-1 text-sm text-[#b6c1ba]">A cleaner app-like view helps your team act faster when timing matters.</p>
-                        </div>
+                        <span className="inline-flex items-center gap-2"><Smartphone className="h-4 w-4 text-[#CB7822]" /> PWA Ready</span>
+                        <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-[#CB7822]" /> Browser or Installed App</span>
                     </motion.div>
-
-                    <motion.p
-                        className="mt-6 text-xs uppercase tracking-[0.16em] text-[#9da8a2]"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.5, duration: 0.7 }}
-                    >
-                        Scroll down for iPhone and Android installation steps
-                    </motion.p>
                 </div>
             </section>
 
@@ -131,6 +106,8 @@ export default function Index() {
                             title="Install On iPhone"
                             icon={<Smartphone className="h-full w-full" />}
                             cardHeight="auto"
+                            showCorners={false}
+                            cornerGlow={false}
                             className="bg-[#190004]/50"
                             contentPadding="px-6 py-8 sm:px-10 sm:py-10"
                         >
@@ -163,6 +140,8 @@ export default function Index() {
                             title="Install On Android"
                             icon={<Smartphone className="h-full w-full" />}
                             cardHeight="auto"
+                            showCorners={false}
+                            cornerGlow={false}
                             className="bg-[#190004]/50"
                             contentPadding="px-6 py-8 sm:px-10 sm:py-10"
                         >
