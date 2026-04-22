@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 
 interface Card {
   id: string;
@@ -39,7 +39,7 @@ interface Props {
   teamId: string;
 }
 
-const actionTypes = ["enhancement", "manipulation", "penalizing", "protection", "recovery", "economic"];
+const actionTypes = ["recovery", "manipulation", "protection", "hint_single"];
 
 const rarityColors: Record<string, string> = {
   ordinary: "text-rarity-ordinary",
@@ -54,9 +54,10 @@ export default function CardDetailModal({ card, owned, onClose, teamId }: Props)
   const [showActivateConfirm, setShowActivateConfirm] = useState(false);
   const [targetTeamId, setTargetTeamId] = useState("");
   const [activating, setActivating] = useState(false);
+  const [activationResult, setActivationResult] = useState<any>(null);
   const isActionCard = actionTypes.includes(card.card_type);
-  const isHintCard = card.card_type === "hint_single" || card.card_type === "hint_combined";
-  const needsTarget = ["manipulation", "penalizing", "economic"].includes(card.card_type);
+  const isHintCard = card.card_type === "hint_single";
+  const needsTarget = ["manipulation"].includes(card.card_type);
 
   const { data: allTeams = [] } = useQuery({
     queryKey: ["all-teams"],
@@ -90,7 +91,7 @@ export default function CardDetailModal({ card, owned, onClose, teamId }: Props)
   const handleActivate = async () => {
     setActivating(true);
     try {
-      const { error } = await supabase.rpc("process_card_activation", {
+      const { data, error } = await supabase.rpc("process_card_activation", {
         p_team_id: teamId,
         p_card_id: card.id,
         p_target_team_id: needsTarget ? targetTeamId || null : null,
@@ -100,10 +101,15 @@ export default function CardDetailModal({ card, owned, onClose, teamId }: Props)
         throw error;
       }
 
-      toast.success(`${card.name} activated!`);
+      setActivationResult(data || null);
+      const revealedHint = data?.result?.hint_text;
+      if (data?.action_type === "hint" && revealedHint) {
+        toast.success(`Hint unlocked: ${revealedHint}`);
+      } else {
+        toast.success(`${card.name} activated!`);
+      }
       queryClient.invalidateQueries({ queryKey: ["team-cards"] });
       queryClient.invalidateQueries({ queryKey: ["admin-activations"] });
-      onClose();
     } catch (error: any) {
       toast.error(error?.message || "Activation failed");
     }
@@ -169,14 +175,31 @@ export default function CardDetailModal({ card, owned, onClose, teamId }: Props)
 
             <p className="text-sm text-foreground/80">{card.description}</p>
 
+            {activationResult?.result?.effect === "hint" && activationResult?.result?.hint_text && (
+              <div className="bg-toxic/10 border border-toxic rounded p-3 space-y-1">
+                <div className="flex items-center gap-2">
+                  <Eye className="w-4 h-4 text-toxic" />
+                  <span className="text-xs font-bold text-toxic">REVEALED HINT</span>
+                </div>
+                <p className="text-sm font-flavor">{activationResult.result.hint_text}</p>
+              </div>
+            )}
+
+            {activationResult?.result?.effect && activationResult.result.effect !== "hint" && (
+              <div className="bg-secondary rounded p-3 border border-border">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1">Activation Result</p>
+                <pre className="text-xs whitespace-pre-wrap font-mono-arcade text-foreground/80">{JSON.stringify(activationResult.result, null, 2)}</pre>
+              </div>
+            )}
+
             {/* Hint content */}
-            {isHintCard && owned > 0 && card.hint_content && (
+            {isHintCard && owned > 0 && (card.hint_content || activationResult?.result?.hint_text) && (
               <div className="bg-secondary rounded p-3 border border-border">
                 <div className="flex items-center gap-2 mb-2">
                   <Eye className="w-4 h-4 text-toxic" />
                   <span className="text-xs font-bold text-toxic">HINT CONTENT</span>
                 </div>
-                <p className="text-sm font-flavor">{card.hint_content}</p>
+                <p className="text-sm font-flavor">{activationResult?.result?.hint_text || card.hint_content}</p>
               </div>
             )}
 

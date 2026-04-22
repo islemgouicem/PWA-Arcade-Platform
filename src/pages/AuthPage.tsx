@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { motion } from "framer-motion";
 import { Shield, LogIn, UserPlus, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -70,7 +70,7 @@ export default function AuthPage() {
     } else {
       const { error } = await signIn(email, password);
       if (error) {
-        toast.error("Invalid credentials");
+        toast.error(error.message || "Invalid credentials");
       }
     }
     setLoading(false);

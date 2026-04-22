@@ -123,15 +123,6 @@ export default function Index() {
                                         </div>
                                     ))}
                                 </div>
-
-                                <div className="mt-6 rounded-2xl border border-[#CB7822]/35 bg-black/30 p-4">
-                                    <p className="flex items-center gap-2 text-xs uppercase tracking-[0.15em] text-[#CB7822]">
-                                        <Share2 className="h-4 w-4" /> Why install?
-                                    </p>
-                                    <p className="mt-2 text-sm leading-6 text-[#b4c0b9]">
-                                        Installing it keeps the experience fast, app-like, and easy to reopen from your home screen.
-                                    </p>
-                                </div>
                             </div>
                         </ArcadeCard>
 
@@ -156,15 +147,6 @@ export default function Index() {
                                             <p className="text-sm leading-6 text-[#b6c1ba] sm:text-base">{step}</p>
                                         </div>
                                     ))}
-                                </div>
-
-                                <div className="mt-6 rounded-2xl border border-[#CB7822]/35 bg-black/30 p-4">
-                                    <p className="flex items-center gap-2 text-xs uppercase tracking-[0.15em] text-[#CB7822]">
-                                        <Share2 className="h-4 w-4" /> Why install?
-                                    </p>
-                                    <p className="mt-2 text-sm leading-6 text-[#b4c0b9]">
-                                        Installing it gives you quicker access, smoother reopening, and a more app-like experience.
-                                    </p>
                                 </div>
                             </div>
                         </ArcadeCard>

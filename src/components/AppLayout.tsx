@@ -1,4 +1,4 @@
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 const participantLinks = [
   { to: "/card-book", label: "Card Book", icon: Book },
   { to: "/gifts", label: "Get My Gifts", icon: Gift },
+  { to: "/shop", label: "Shop", icon: Store },
   { to: "/mini-games", label: "Mini Games", icon: Gamepad2 },
   { to: "/missions", label: "Missions", icon: Activity },
   { to: "/ranking", label: "Rankings", icon: Trophy },
@@ -26,6 +27,9 @@ const adminLinks = [
   { to: "/admin?tab=teams", label: "Teams", icon: Users },
   { to: "/admin?tab=coffres", label: "Coffres", icon: Package },
   { to: "/admin?tab=points", label: "Points", icon: Zap },
+  { to: "/admin?tab=mini-games", label: "Mini-Games", icon: Gamepad2 },
+  { to: "/admin?tab=missions", label: "Missions", icon: Activity },
+  { to: "/admin?tab=shop", label: "Shop", icon: Store },
   { to: "/admin?tab=activations", label: "Activation Log", icon: AlertTriangle },
   { to: "/admin?tab=analytics", label: "Analytics", icon: Trophy },
   { to: "/admin-ops", label: "Operations Config", icon: Settings },

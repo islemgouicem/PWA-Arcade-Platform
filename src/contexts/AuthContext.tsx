@@ -1,6 +1,8 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useEffect, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import type { User, Session } from "@supabase/supabase-js";
+import type { Session, User } from "@supabase/supabase-js";
+import { AuthContext } from "@/contexts/AuthContextValue";
 
 interface Team {
   id: string;
@@ -12,24 +14,7 @@ interface Team {
   suspended_until?: string | null;
 }
 
-interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  team: Team | null;
-  roles: string[];
-  loading: boolean;
-  isAdmin: boolean;
-  isShopper: boolean;
-  isParticipant: boolean;
-  isMiniGameHolder: boolean;
-  isMissionResponsible: boolean;
-  signUp: (email: string, password: string, teamName: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signOut: () => Promise<void>;
-  refreshTeam: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+type AuthContextType = import("@/contexts/AuthContextValue").AuthContextType;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -43,8 +28,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       supabase.from("teams").select("*").eq("user_id", userId).maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", userId),
     ]);
-    if (teamRes.data) setTeam(teamRes.data as Team);
-    if (rolesRes.data) setRoles(rolesRes.data.map((r: any) => r.role));
+    setTeam((teamRes.data as Team) ?? null);
+    setRoles((rolesRes.data || []).map((r: any) => r.role));
   };
 
   const refreshTeam = async () => {
@@ -53,22 +38,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setLoading(true);
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        setTimeout(() => fetchTeamAndRoles(session.user.id), 0);
+        setTimeout(async () => {
+          await fetchTeamAndRoles(session.user.id);
+          setLoading(false);
+        }, 0);
       } else {
         setTeam(null);
         setRoles([]);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      setLoading(true);
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchTeamAndRoles(session.user.id);
+        await fetchTeamAndRoles(session.user.id);
+      } else {
+        setTeam(null);
+        setRoles([]);
       }
       setLoading(false);
     });
@@ -113,11 +106,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isParticipant = roles.includes("participant");
   const isMiniGameHolder = roles.includes("mini_game_holder");
   const isMissionResponsible = roles.includes("mission_responsible");
+  const isZoneHandler = roles.includes("zone_handler");
 
   return (
     <AuthContext.Provider value={{
       user, session, team, roles, loading,
-      isAdmin, isShopper, isParticipant, isMiniGameHolder, isMissionResponsible,
+      isAdmin, isShopper, isParticipant, isMiniGameHolder, isMissionResponsible, isZoneHandler,
       signUp, signIn, signOut, refreshTeam,
     }}>
       {children}
@@ -125,8 +119,3 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
-}

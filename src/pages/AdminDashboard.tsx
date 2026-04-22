@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,12 +15,16 @@ import { motion } from "framer-motion";
 import {
   Shield, Users, Package, Compass, Zap, ScrollText, Megaphone,
   Plus, Minus, Crown, AlertTriangle, Settings, Trophy,
-  BarChart3, UserCog, Eye, Undo2
+  BarChart3, UserCog, Eye, Undo2, Gamepad2, Copy
 } from "lucide-react";
+import { AdminMiniGames } from "@/pages/AdminMiniGamesTab";
+import { AdminMissions } from "@/pages/AdminMissionsTab";
+import { AdminShopTab } from "@/pages/AdminShopTab";
+import { AdminSubmissionsView } from "@/pages/FinalSubmissionMission";
 
 export default function AdminDashboard() {
   const [searchParams] = useSearchParams();
-  const validTabs = ["teams", "coffres", "points", "activations", "settings", "announce", "analytics"];
+  const validTabs = ["teams", "coffres", "points", "activations", "settings", "announce", "mini-games", "missions", "shop", "analytics"];
   const tabParam = searchParams.get("tab") || "teams";
   const activeTab = validTabs.includes(tabParam) ? tabParam : "teams";
 
@@ -36,6 +40,14 @@ export default function AdminDashboard() {
       {activeTab === "activations" && <AdminActivationLog />}
       {activeTab === "settings" && <AdminSettings />}
       {activeTab === "announce" && <AdminAnnouncements />}
+      {activeTab === "mini-games" && <AdminMiniGames />}
+      {activeTab === "missions" && (
+        <div className="space-y-6">
+          <AdminMissions />
+          <AdminSubmissionsView />
+        </div>
+      )}
+      {activeTab === "shop" && <AdminShopTab />}
       {activeTab === "analytics" && <AdminAnalytics />}
     </div>
   );
@@ -76,36 +88,7 @@ function AdminTeams() {
     toast.success(current ? "Team unsuspended" : "Team suspended");
   };
 
-  const declareWinner = async (teamId: string) => {
-    await supabase.from("teams").update({ is_winner: false }).neq("id", teamId);
-    await supabase.from("teams").update({ is_winner: true }).eq("id", teamId);
-    await supabase.from("platform_settings").update({ value: "true" as any }).eq("key", "winner_declared");
-    await supabase.from("platform_settings").update({ value: JSON.stringify(teamId) as any }).eq("key", "winner_team_id");
-    await supabase.from("platform_settings").update({ value: false as any }).eq("key", "activation_window_open");
 
-    const winnerTeam = teams.find((t: any) => t.id === teamId);
-    await supabase.from("announcements").insert({
-      title: "Winner Declared",
-      content: `${winnerTeam?.team_name || "A team"} has been declared the ARCADE winner!`,
-      created_by: user?.id,
-    });
-
-    const { data: participants } = await supabase.from("teams").select("user_id, id");
-    if (participants?.length) {
-      await supabase.from("notifications").insert(
-        participants.map((p: any) => ({
-          user_id: p.user_id,
-          team_id: p.id,
-          type: "winner_declared" as any,
-          title: "Winner Declared",
-          message: `${winnerTeam?.team_name || "A team"} has won the event.`,
-        })),
-      );
-    }
-
-    queryClient.invalidateQueries({ queryKey: ["admin-teams"] });
-    toast.success("Winner declared!");
-  };
 
   const saveTeamName = async (teamId: string) => {
     if (!editingName.trim()) return;
@@ -147,7 +130,7 @@ function AdminTeams() {
                   <Button size="sm" variant="outline" onClick={() => { setEditingTeamId(null); setEditingName(""); }}>Cancel</Button>
                 </div>
               ) : (
-                <p className="font-bold">{team.team_name} {team.is_winner && <Crown className="w-4 h-4 inline text-legendary-gold" />}</p>
+                <p className="font-bold">{team.team_name}</p>
               )}
               <p className="text-xs text-muted-foreground">{team.points} pts • {team.is_suspended ? "SUSPENDED" : "Active"}</p>
             </div>
@@ -164,11 +147,6 @@ function AdminTeams() {
               <Button size="sm" variant="outline" onClick={() => toggleSuspend(team.id, team.is_suspended)}>
                 {team.is_suspended ? "Unsuspend" : "Suspend"}
               </Button>
-              {!team.is_winner && (
-                <Button size="sm" variant="destructive" onClick={() => declareWinner(team.id)}>
-                  <Crown className="w-4 h-4" />
-                </Button>
-              )}
             </div>
           </div>
 
@@ -403,15 +381,6 @@ function AdminPoints() {
   const [selectedTeam, setSelectedTeam] = useState("");
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
-  const [gameLabel, setGameLabel] = useState("");
-  const [rank1Team, setRank1Team] = useState("");
-  const [rank2Team, setRank2Team] = useState("");
-  const [rank3Team, setRank3Team] = useState("");
-  const [rank4Team, setRank4Team] = useState("");
-  const [rank1Pts, setRank1Pts] = useState("100");
-  const [rank2Pts, setRank2Pts] = useState("70");
-  const [rank3Pts, setRank3Pts] = useState("50");
-  const [rank4Pts, setRank4Pts] = useState("30");
 
   const { data: teams = [] } = useQuery({
     queryKey: ["admin-teams-points"],
@@ -448,42 +417,7 @@ function AdminPoints() {
     queryClient.invalidateQueries({ queryKey: ["admin-teams-points"] });
   };
 
-  const applyBulkResults = async () => {
-    const rows = [
-      { teamId: rank1Team, points: Number(rank1Pts || 0), rank: 1 },
-      { teamId: rank2Team, points: Number(rank2Pts || 0), rank: 2 },
-      { teamId: rank3Team, points: Number(rank3Pts || 0), rank: 3 },
-      { teamId: rank4Team, points: Number(rank4Pts || 0), rank: 4 },
-    ].filter((r) => !!r.teamId && r.points !== 0);
 
-    if (rows.length === 0) {
-      toast.error("Add at least one ranked team");
-      return;
-    }
-
-    for (const row of rows) {
-      const team = teams.find((t: any) => t.id === row.teamId);
-      if (!team) continue;
-
-      await supabase.from("teams").update({ points: team.points + row.points }).eq("id", row.teamId);
-      await supabase.from("point_logs").insert({
-        team_id: row.teamId,
-        amount: row.points,
-        reason: `Bulk results${gameLabel ? ` (${gameLabel})` : ""} - Rank ${row.rank}`,
-        admin_user_id: user?.id,
-      });
-      await supabase.from("notifications").insert({
-        user_id: team.user_id,
-        team_id: row.teamId,
-        type: "trade_completed" as any,
-        title: "Points Awarded",
-        message: `You received ${row.points} points${gameLabel ? ` from ${gameLabel}` : ""}.`,
-      });
-    }
-
-    toast.success("Bulk results applied");
-    queryClient.invalidateQueries({ queryKey: ["admin-teams-points"] });
-  };
 
   return (
     <div className="space-y-4 mt-4">
@@ -512,55 +446,7 @@ function AdminPoints() {
         </Button>
       </div>
 
-      <div className="border-t border-border pt-4 space-y-3">
-        <h3 className="font-display text-lg">Bulk Points by Rank</h3>
-        <div>
-          <Label htmlFor="gameLabel" className="font-flavor">Game/Round Label</Label>
-          <Input id="gameLabel" placeholder="Game/round label" value={gameLabel} onChange={(e) => setGameLabel(e.target.value)} className="mt-1" />
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          <Select value={rank1Team} onValueChange={setRank1Team}>
-            <SelectTrigger><SelectValue placeholder="Rank 1 Team" /></SelectTrigger>
-            <SelectContent>{teams.map((t: any) => <SelectItem key={`r1-${t.id}`} value={t.id}>{t.team_name}</SelectItem>)}</SelectContent>
-          </Select>
-          <div>
-            <Label htmlFor="rank1Points" className="font-flavor text-xs">Rank 1 Points</Label>
-            <Input id="rank1Points" type="number" placeholder="Rank 1 points" value={rank1Pts} onChange={(e) => setRank1Pts(e.target.value)} className="mt-1" />
-          </div>
-
-          <Select value={rank2Team} onValueChange={setRank2Team}>
-            <SelectTrigger><SelectValue placeholder="Rank 2 Team" /></SelectTrigger>
-            <SelectContent>{teams.map((t: any) => <SelectItem key={`r2-${t.id}`} value={t.id}>{t.team_name}</SelectItem>)}</SelectContent>
-          </Select>
-          <div>
-            <Label htmlFor="rank2Points" className="font-flavor text-xs">Rank 2 Points</Label>
-            <Input id="rank2Points" type="number" placeholder="Rank 2 points" value={rank2Pts} onChange={(e) => setRank2Pts(e.target.value)} className="mt-1" />
-          </div>
-
-          <Select value={rank3Team} onValueChange={setRank3Team}>
-            <SelectTrigger><SelectValue placeholder="Rank 3 Team" /></SelectTrigger>
-            <SelectContent>{teams.map((t: any) => <SelectItem key={`r3-${t.id}`} value={t.id}>{t.team_name}</SelectItem>)}</SelectContent>
-          </Select>
-          <div>
-            <Label htmlFor="rank3Points" className="font-flavor text-xs">Rank 3 Points</Label>
-            <Input id="rank3Points" type="number" placeholder="Rank 3 points" value={rank3Pts} onChange={(e) => setRank3Pts(e.target.value)} className="mt-1" />
-          </div>
-
-          <Select value={rank4Team} onValueChange={setRank4Team}>
-            <SelectTrigger><SelectValue placeholder="Rank 4 Team" /></SelectTrigger>
-            <SelectContent>{teams.map((t: any) => <SelectItem key={`r4-${t.id}`} value={t.id}>{t.team_name}</SelectItem>)}</SelectContent>
-          </Select>
-          <div>
-            <Label htmlFor="rank4Points" className="font-flavor text-xs">Rank 4 Points</Label>
-            <Input id="rank4Points" type="number" placeholder="Rank 4 points" value={rank4Pts} onChange={(e) => setRank4Pts(e.target.value)} className="mt-1" />
-          </div>
-        </div>
-
-        <Button onClick={applyBulkResults} className="w-full">
-          Apply Bulk Results
-        </Button>
-      </div>
     </div>
   );
 }

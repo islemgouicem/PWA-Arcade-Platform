@@ -1,64 +1,62 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Timer, Gamepad2 } from "lucide-react";
-
-function useLiveElapsed(fromIso?: string | null) {
-    const [, tick] = useState(0);
-    useEffect(() => {
-        if (!fromIso) return;
-        const id = window.setInterval(() => tick((v) => v + 1), 1000);
-        return () => window.clearInterval(id);
-    }, [fromIso]);
-
-    if (!fromIso) return "00:00:00";
-    const sec = Math.max(0, Math.floor((Date.now() - new Date(fromIso).getTime()) / 1000));
-    const h = String(Math.floor(sec / 3600)).padStart(2, "0");
-    const m = String(Math.floor((sec % 3600) / 60)).padStart(2, "0");
-    const s = String(sec % 60).padStart(2, "0");
-    return `${h}:${m}:${s}`;
-}
+import { Gamepad2 } from "lucide-react";
 
 export default function MiniGamesPage() {
     const { team } = useAuth();
     const queryClient = useQueryClient();
 
-    const { data: openGames = [] } = useQuery({
-        queryKey: ["mini-games-open"],
+    const { data: games = [], error: gamesError } = useQuery({
+        queryKey: ["mini-games-all"],
         queryFn: async () => {
             const { data, error } = await (supabase as any)
                 .from("mini_games")
                 .select("id, name, is_open")
-                .eq("is_open", true)
                 .order("name");
             if (error) throw error;
             return data || [];
         },
     });
 
-    const { data: activeJoin } = useQuery({
-        queryKey: ["mini-games-my-active", team?.id],
+    const { data: myJoins = [] } = useQuery({
+        queryKey: ["mini-games-my-joins", team?.id],
         enabled: !!team?.id,
         queryFn: async () => {
             const { data, error } = await (supabase as any)
                 .from("mini_game_joins")
-                .select("id, joined_at, mini_game_id, mini_games(name)")
+                .select("mini_game_id, is_active")
                 .eq("team_id", team!.id)
-                .eq("is_active", true)
-                .order("joined_at", { ascending: false })
-                .limit(1)
-                .maybeSingle();
+                .order("joined_at", { ascending: false });
             if (error) throw error;
-            return data;
+            return data || [];
         },
     });
 
-    const elapsed = useLiveElapsed(activeJoin?.joined_at);
+    const { data: myRankings = [] } = useQuery({
+        queryKey: ["mini-games-my-rankings", team?.id],
+        enabled: !!team?.id,
+        queryFn: async () => {
+            const { data, error } = await (supabase as any)
+                .from("mini_game_rankings")
+                .select("mini_game_id, ranking")
+                .eq("team_id", team!.id)
+                .order("created_at", { ascending: false });
+            if (error) throw error;
+            return data || [];
+        },
+    });
+
+    const statusByGameId = useMemo(() => {
+        const completed = new Set(myRankings.map((r: any) => r.mini_game_id));
+        const joined = new Set(myJoins.filter((j: any) => j.is_active).map((j: any) => j.mini_game_id));
+        return { completed, joined };
+    }, [myJoins, myRankings]);
 
     const handleJoin = async (gameId: string) => {
         const { error } = await (supabase as any).rpc("join_mini_game", {
@@ -71,7 +69,8 @@ export default function MiniGamesPage() {
         }
 
         toast.success("Joined mini-game. Show this confirmation screen to the holder.");
-        queryClient.invalidateQueries({ queryKey: ["mini-games-my-active"] });
+        queryClient.invalidateQueries({ queryKey: ["mini-games-my-joins"] });
+        queryClient.invalidateQueries({ queryKey: ["mini-games-my-rankings"] });
     };
 
     if (team?.is_suspended) {
@@ -93,36 +92,34 @@ export default function MiniGamesPage() {
                 <Gamepad2 className="w-8 h-8" /> Mini Games
             </h1>
 
-            {activeJoin ? (
-                <Card className="border-toxic/40">
-                    <CardHeader>
-                        <CardTitle>Participation Confirmation</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                        <p><strong>Team:</strong> {team?.team_name}</p>
-                        <p><strong>Game:</strong> {(activeJoin.mini_games as any)?.name || "Mini Game"}</p>
-                        <p className="flex items-center gap-2 text-biohazard">
-                            <Timer className="w-4 h-4" /> <strong>{elapsed}</strong>
-                        </p>
-                        <p className="text-xs text-muted-foreground">Show this screen to the mini-game holder.</p>
-                    </CardContent>
-                </Card>
-            ) : (
-                <div className="space-y-3">
-                    {openGames.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No mini-games are currently open.</p>
-                    ) : (
-                        openGames.map((game: any) => (
+            <div className="space-y-3">
+                {gamesError ? (
+                    <p className="text-sm text-blood">Failed to load mini-games. Please refresh.</p>
+                ) : games.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No open mini-games currently available.</p>
+                ) : (
+                    games.map((game: any) => {
+                        const isCompleted = statusByGameId.completed.has(game.id);
+                        const isJoined = statusByGameId.joined.has(game.id);
+                        const canJoin = game.is_open && !isCompleted && !isJoined;
+
+                        return (
                             <Card key={game.id}>
-                                <CardContent className="p-4 flex items-center justify-between">
+                                <CardContent className="p-4 flex items-center justify-between gap-3">
                                     <p className="font-semibold">{game.name}</p>
-                                    <Button onClick={() => handleJoin(game.id)}>Join</Button>
+                                    {isCompleted ? (
+                                        <span className="text-sm text-muted-foreground">Completed</span>
+                                    ) : isJoined ? (
+                                        <span className="text-sm text-muted-foreground">Joined</span>
+                                    ) : (
+                                        <Button onClick={() => handleJoin(game.id)} disabled={!canJoin}>Join</Button>
+                                    )}
                                 </CardContent>
                             </Card>
-                        ))
-                    )}
-                </div>
-            )}
+                        );
+                    })
+                )}
+            </div>
         </div>
     );
 }
