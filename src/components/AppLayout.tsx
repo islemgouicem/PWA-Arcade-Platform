@@ -4,8 +4,7 @@ import { useAnnouncements } from "@/hooks/use-announcements";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { NavLink, useLocation } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Book, Gift, Trophy, Shield, Store,
   Menu, X, LogOut, Megaphone, Users, Package,
@@ -109,6 +108,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     (n) => !n.is_read && (n.type === "shop_window" || n.type === "ranking_visibility"),
   );
 
+  useEffect(() => {
+    // Always close mobile sidebar on route changes to avoid stale overlay interception.
+    setSidebarOpen(false);
+  }, [location.pathname, location.search]);
+
   return (
     <div className="arcade-dashboard-shell min-h-screen flex bg-background bg-scanline">
       {/* Mobile header */}
@@ -129,17 +133,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* Sidebar overlay (mobile) */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-background/80 md:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-      </AnimatePresence>
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-background/80 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
       {/* Sidebar */}
       <aside
