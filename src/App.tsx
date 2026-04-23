@@ -9,6 +9,7 @@ import AppLayout from "@/components/AppLayout";
 
 const AuthPage = lazy(() => import("@/pages/AuthPage"));
 const CardBookPage = lazy(() => import("@/pages/CardBookPage"));
+const MyHintsPage = lazy(() => import("@/pages/MyHintsPage"));
 const GiftsPage = lazy(() => import("@/pages/GiftsPage"));
 const RankingPage = lazy(() => import("@/pages/RankingPage"));
 const ShopPage = lazy(() => import("@/pages/ShopPage"));
@@ -114,6 +115,7 @@ function AppRoutes() {
         <Route path="/auth" element={user && !loading ? <Navigate to={homePath} replace /> : <AuthPage />} />
         <Route path="/" element={user && !loading ? <Navigate to={homePath} replace /> : <Index />} />
         <Route path="/card-book" element={<ProtectedRoute><ParticipantRoute><CardBookPage /></ParticipantRoute></ProtectedRoute>} />
+        <Route path="/my-hints" element={<ProtectedRoute><ParticipantRoute><MyHintsPage /></ParticipantRoute></ProtectedRoute>} />
         <Route path="/gifts" element={<ProtectedRoute><ParticipantRoute><GiftsPage /></ParticipantRoute></ProtectedRoute>} />
         <Route path="/missions" element={<ProtectedRoute><ParticipantRoute><MissionsPage /></ParticipantRoute></ProtectedRoute>} />
         <Route path="/mini-games" element={<ProtectedRoute><ParticipantRoute><MiniGamesPage /></ParticipantRoute></ProtectedRoute>} />

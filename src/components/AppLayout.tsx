@@ -8,12 +8,13 @@ import { useEffect, useState } from "react";
 import {
   Book, Gift, Trophy, Shield, Store,
   Menu, X, LogOut, Megaphone, Users, Package,
-  Zap, AlertTriangle, Settings, Bell, Activity, Gamepad2, ClipboardCheck
+  Zap, AlertTriangle, Settings, Bell, Activity, Gamepad2, ClipboardCheck, Lightbulb
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const participantLinks = [
   { to: "/card-book", label: "Card Book", icon: Book },
+  { to: "/my-hints", label: "My Hints", icon: Lightbulb },
   { to: "/gifts", label: "Get My Gifts", icon: Gift },
   { to: "/shop", label: "Shop", icon: Store },
   { to: "/mini-games", label: "Mini Games", icon: Gamepad2 },
@@ -28,6 +29,7 @@ const adminLinks = [
   { to: "/admin?tab=points", label: "Points", icon: Zap },
   { to: "/admin?tab=mini-games", label: "Mini-Games", icon: Gamepad2 },
   { to: "/admin?tab=missions", label: "Missions", icon: Activity },
+  { to: "/admin?tab=mission-hints", label: "Mission hints", icon: Lightbulb },
   { to: "/admin?tab=shop", label: "Shop", icon: Store },
   { to: "/admin?tab=activations", label: "Activation Log", icon: AlertTriangle },
   { to: "/admin?tab=analytics", label: "Analytics", icon: Trophy },
@@ -67,8 +69,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { announcements, dismiss } = useAnnouncements();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
-  const healthPercent = Math.max(0, Math.min(100, Math.round(Number(team?.health_status ?? 100))));
-  const healthHue = Math.round((healthPercent / 100) * 120);
+  const healthPercentRaw = Math.max(0, Math.min(100, Number(team?.health_status ?? 100)));
+  const healthPercent = Math.round(healthPercentRaw);
+  const healthHue = Math.round((healthPercentRaw / 100) * 120);
   const healthColor = `hsl(${healthHue} 85% 48%)`;
 
   const { data: pendingCoffres = [] } = useQuery({
@@ -165,14 +168,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-muted-foreground">
                 <span>Health Status</span>
                 <span className="font-mono-arcade" style={{ color: healthColor }}>
-                  {healthPercent}%
+                  {healthPercentRaw.toFixed(1)}%
                 </span>
               </div>
               <div className="relative h-2.5 overflow-hidden rounded-full border border-border/70 bg-black/35">
                 <div
                   className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
                   style={{
-                    width: `${healthPercent}%`,
+                    width: `${healthPercentRaw}%`,
                     background: `linear-gradient(90deg, hsl(${Math.max(healthHue - 18, 0)} 92% 40%) 0%, ${healthColor} 55%, hsl(${Math.min(healthHue + 12, 120)} 90% 55%) 100%)`,
                     boxShadow: `0 0 12px color-mix(in srgb, ${healthColor} 70%, transparent)`,
                   }}

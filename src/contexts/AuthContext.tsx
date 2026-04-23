@@ -69,6 +69,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const refresh = () => {
+      void fetchTeamAndRoles(user.id);
+    };
+
+    // Keep health/points/status synced for PWA sessions.
+    const intervalId = window.setInterval(refresh, 3000);
+
+    const teamChannel = supabase
+      .channel(`team-live-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "teams",
+        },
+        (payload: any) => {
+          const rowUserId = payload?.new?.user_id ?? payload?.old?.user_id;
+          if (rowUserId === user.id) {
+            refresh();
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      window.clearInterval(intervalId);
+      supabase.removeChannel(teamChannel);
+    };
+  }, [user?.id]);
+
   const signUp = async (email: string, password: string, teamName: string) => {
     const { data: registrationSetting } = await supabase
       .from("platform_settings")

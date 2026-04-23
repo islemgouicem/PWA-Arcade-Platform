@@ -3,9 +3,19 @@ import { useAuth } from "@/contexts/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence, type PanInfo } from "framer-motion";
-import { ChevronLeft, ChevronRight, Lock, Zap } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CardDetailModal from "@/components/CardDetailModal";
+
+const SUPPORTED_CARD_TYPES = [
+  "attack",
+  "defense",
+  "healing",
+  "hint_low",
+  "hint_mid",
+  "hint_high",
+] as const;
+type SupportedCardType = (typeof SUPPORTED_CARD_TYPES)[number];
 
 const CARDS_PER_SPREAD = 4;
 
@@ -23,10 +33,25 @@ interface Card {
   sort_order: number;
 }
 
-interface TeamCard {
+interface TeamCardRow {
   card_id: string;
   quantity: number;
+  cards: Card | null;
 }
+
+interface OwnedEntry {
+  card: Card;
+  quantity: number;
+}
+
+const cardTypeLabel: Record<string, string> = {
+  attack: "Attack",
+  defense: "Defense",
+  healing: "Healing",
+  hint_low: "Hint Low",
+  hint_mid: "Hint Mid",
+  hint_high: "Hint High",
+};
 
 const rarityLabel: Record<string, string> = {
   ordinary: "Common",
@@ -44,31 +69,26 @@ const rarityBanner: Record<string, string> = {
 
 function cardCode(card: Card) {
   const typeToken = card.card_type.slice(0, 2).toUpperCase();
-  return `AR-${String(card.sort_order + 1).padStart(2, "0")}-${typeToken}`;
+  const order = Number.isFinite(card.sort_order) ? card.sort_order : 0;
+  return `AR-${String(order + 1).padStart(2, "0")}-${typeToken}`;
 }
 
-function splitIntoSpreads(cards: Card[]) {
-  if (cards.length === 0) return [[null, null, null, null] as Array<Card | null>];
+function splitIntoSpreads(entries: OwnedEntry[]) {
+  if (entries.length === 0) {
+    return [[null, null, null, null] as Array<OwnedEntry | null>];
+  }
 
-  const spreads: Array<Array<Card | null>> = [];
-  for (let i = 0; i < cards.length; i += CARDS_PER_SPREAD) {
-    const chunk: Array<Card | null> = cards.slice(i, i + CARDS_PER_SPREAD);
+  const spreads: Array<Array<OwnedEntry | null>> = [];
+  for (let i = 0; i < entries.length; i += CARDS_PER_SPREAD) {
+    const chunk: Array<OwnedEntry | null> = entries.slice(i, i + CARDS_PER_SPREAD);
     while (chunk.length < CARDS_PER_SPREAD) chunk.push(null);
     spreads.push(chunk);
   }
   return spreads;
 }
 
-function BookCard({
-  card,
-  owned,
-  onOpen,
-}: {
-  card: Card;
-  owned: number;
-  onOpen: () => void;
-}) {
-  const isOwned = owned > 0;
+function BookCard({ entry, onOpen }: { entry: OwnedEntry; onOpen: () => void }) {
+  const { card, quantity } = entry;
 
   return (
     <motion.button
@@ -79,41 +99,44 @@ function BookCard({
       className="book-card-face group"
     >
       <div className="book-card-header">
-        <span>{String(card.sort_order + 1).padStart(2, "0")}</span>
+        <span>{String((card.sort_order ?? 0) + 1).padStart(2, "0")}</span>
         <span className="truncate px-1">{card.name}</span>
         <span>{cardCode(card)}</span>
       </div>
 
-      <div className={`book-card-art ${!isOwned ? "card-unowned" : ""}`}>
+      <div className="book-card-art">
         {card.image_url ? (
           <img src={card.image_url} alt={card.name} className="h-full w-full object-cover" />
         ) : (
           <div className="book-card-art-fallback">
-            {card.card_type === "hint_single" || card.card_type === "hint_combined" ? "?" : "⚔"}
+            {card.card_type.startsWith("hint_") ? "?" : "⚔"}
           </div>
         )}
 
-        {!isOwned && (
-          <div className="book-card-locked-overlay">
-            <Lock className="w-6 h-6" />
-            <span className="text-[10px] tracking-widest">LOCKED</span>
-          </div>
-        )}
-
-        <div className={`book-card-rarity bg-gradient-to-r ${rarityBanner[card.rarity] || rarityBanner.ordinary}`}>
+        <div
+          className={`book-card-rarity bg-gradient-to-r ${
+            rarityBanner[card.rarity] || rarityBanner.ordinary
+          }`}
+        >
           {rarityLabel[card.rarity] || "Common"}
         </div>
 
-        {owned > 1 && <div className="book-card-qty">x{owned}</div>}
+        {quantity > 1 && <div className="book-card-qty">x{quantity}</div>}
       </div>
 
       <div className="book-card-text">
-        <p className="book-card-type">{card.card_type.replace(/_/g, " ")}</p>
-        <p className="line-clamp-3">{isOwned ? card.description : "Unknown card. Acquire this card to reveal its full details."}</p>
+        <p className="book-card-type">
+          {cardTypeLabel[card.card_type] || card.card_type.replace(/_/g, " ")}
+        </p>
+        <p className="line-clamp-3">{card.description}</p>
       </div>
 
       <div className="book-card-footer">
-        {card.is_mandatory ? <span className="text-blood font-bold">KEY</span> : <span className="text-muted-foreground">{rarityLabel[card.rarity]}</span>}
+        {card.is_mandatory ? (
+          <span className="text-blood font-bold">KEY</span>
+        ) : (
+          <span className="text-muted-foreground">{rarityLabel[card.rarity] || "Common"}</span>
+        )}
         {card.point_value > 0 ? (
           <span className="text-biohazard flex items-center gap-1 font-mono-arcade">
             <Zap className="w-3 h-3" /> {card.point_value}
@@ -126,42 +149,30 @@ function BookCard({
   );
 }
 
-function PageSlot({
-  card,
-  owned,
-  onOpen,
-}: {
-  card: Card | null;
-  owned: number;
-  onOpen: () => void;
-}) {
-  if (!card) {
+function PageSlot({ entry, onOpen }: { entry: OwnedEntry | null; onOpen: () => void }) {
+  if (!entry) {
     return <div className="book-card-slot-empty" aria-hidden="true" />;
   }
-
-  return <BookCard card={card} owned={owned} onOpen={onOpen} />;
+  return <BookCard entry={entry} onOpen={onOpen} />;
 }
 
 function BookPagePanel({
-  cards,
-  ownedMap,
+  entries,
   pageClass,
   onSelect,
 }: {
-  cards: Array<Card | null>;
-  ownedMap: Record<string, number>;
+  entries: Array<OwnedEntry | null>;
   pageClass: string;
   onSelect: (card: Card) => void;
 }) {
   return (
     <section className={`book-page ${pageClass}`}>
       <div className="book-page-grid">
-        {cards.map((card, idx) => (
+        {entries.map((entry, idx) => (
           <PageSlot
-            key={card?.id || `${pageClass}-${idx}`}
-            card={card}
-            owned={card ? ownedMap[card.id] || 0 : 0}
-            onOpen={() => card && onSelect(card)}
+            key={entry?.card.id || `${pageClass}-${idx}`}
+            entry={entry}
+            onOpen={() => entry && onSelect(entry.card)}
           />
         ))}
       </div>
@@ -175,31 +186,43 @@ export default function CardBookPage() {
   const [flipping, setFlipping] = useState<null | { direction: 1 | -1; target: number }>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
 
-  const { data: cards = [] } = useQuery({
-    queryKey: ["cards-catalogue"],
+  const { data: inventory = [] } = useQuery({
+    queryKey: ["team-cards-book", team?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("cards").select("*").order("sort_order");
-      return (data || []) as Card[];
-    },
-  });
-
-  const { data: teamCards = [] } = useQuery({
-    queryKey: ["team-cards", team?.id],
-    queryFn: async () => {
-      if (!team) return [];
-      const { data } = await supabase.from("team_cards").select("card_id, quantity").eq("team_id", team.id);
-      return (data || []) as TeamCard[];
+      if (!team) return [] as TeamCardRow[];
+      const { data, error } = await supabase
+        .from("team_cards")
+        .select("card_id, quantity, cards(*)")
+        .eq("team_id", team.id)
+        .gt("quantity", 0);
+      if (error) throw error;
+      return (data || []) as unknown as TeamCardRow[];
     },
     enabled: !!team,
   });
 
-  const ownedMap = useMemo(() => {
-    const map: Record<string, number> = {};
-    teamCards.forEach((tc) => { map[tc.card_id] = tc.quantity; });
-    return map;
-  }, [teamCards]);
+  const ownedEntries = useMemo<OwnedEntry[]>(() => {
+    return inventory
+      .filter(
+        (row): row is TeamCardRow & { cards: Card } =>
+          !!row.cards &&
+          SUPPORTED_CARD_TYPES.includes(row.cards.card_type as SupportedCardType),
+      )
+      .map((row) => ({ card: row.cards as Card, quantity: row.quantity }))
+      .sort((a, b) => {
+        const orderA = a.card.sort_order ?? 0;
+        const orderB = b.card.sort_order ?? 0;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.card.name.localeCompare(b.card.name);
+      });
+  }, [inventory]);
 
-  const spreads = useMemo(() => splitIntoSpreads(cards), [cards]);
+  const ownedTotal = useMemo(
+    () => ownedEntries.reduce((sum, entry) => sum + entry.quantity, 0),
+    [ownedEntries],
+  );
+
+  const spreads = useMemo(() => splitIntoSpreads(ownedEntries), [ownedEntries]);
   const totalSpreads = spreads.length;
 
   useEffect(() => {
@@ -227,13 +250,8 @@ export default function CardBookPage() {
     setFlipping({ direction, target });
   };
 
-  const turnNext = () => {
-    startFlip(1);
-  };
-
-  const turnPrev = () => {
-    startFlip(-1);
-  };
+  const turnNext = () => startFlip(1);
+  const turnPrev = () => startFlip(-1);
 
   const onDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     const swipePower = info.offset.x + info.velocity.x * 0.35;
@@ -250,9 +268,7 @@ export default function CardBookPage() {
     <div className="flex flex-col h-full gap-4">
       <div className="flex items-center justify-between mb-1">
         <h1 className="text-3xl font-display text-toxic tracking-wide">Card Book</h1>
-        <span className="font-mono-arcade text-biohazard text-sm">
-          {teamCards.reduce((sum, tc) => sum + tc.quantity, 0)} owned
-        </span>
+        <span className="font-mono-arcade text-biohazard text-sm">{ownedTotal} owned</span>
       </div>
 
       <div className="book-stage flex-1 min-h-[560px] md:min-h-[640px]">
@@ -265,7 +281,11 @@ export default function CardBookPage() {
         >
           <div className="book-spread">
             <div className="book-page-slot">
-              <BookPagePanel cards={leftCards} ownedMap={ownedMap} pageClass="book-page-left" onSelect={setSelectedCard} />
+              <BookPagePanel
+                entries={leftCards}
+                pageClass="book-page-left"
+                onSelect={setSelectedCard}
+              />
 
               <AnimatePresence>
                 {flipping?.direction === -1 && (
@@ -284,10 +304,18 @@ export default function CardBookPage() {
                     }}
                   >
                     <div className="book-flip-face book-flip-face-front">
-                      <BookPagePanel cards={currentLeft} ownedMap={ownedMap} pageClass="book-page-left" onSelect={setSelectedCard} />
+                      <BookPagePanel
+                        entries={currentLeft}
+                        pageClass="book-page-left"
+                        onSelect={setSelectedCard}
+                      />
                     </div>
                     <div className="book-flip-face book-flip-face-back">
-                      <BookPagePanel cards={targetRight} ownedMap={ownedMap} pageClass="book-page-right" onSelect={setSelectedCard} />
+                      <BookPagePanel
+                        entries={targetRight}
+                        pageClass="book-page-right"
+                        onSelect={setSelectedCard}
+                      />
                     </div>
                   </motion.div>
                 )}
@@ -297,7 +325,11 @@ export default function CardBookPage() {
             <div className="book-gutter" aria-hidden="true" />
 
             <div className="book-page-slot">
-              <BookPagePanel cards={rightCards} ownedMap={ownedMap} pageClass="book-page-right" onSelect={setSelectedCard} />
+              <BookPagePanel
+                entries={rightCards}
+                pageClass="book-page-right"
+                onSelect={setSelectedCard}
+              />
 
               <AnimatePresence>
                 {flipping?.direction === 1 && (
@@ -316,10 +348,18 @@ export default function CardBookPage() {
                     }}
                   >
                     <div className="book-flip-face book-flip-face-front">
-                      <BookPagePanel cards={currentRight} ownedMap={ownedMap} pageClass="book-page-right" onSelect={setSelectedCard} />
+                      <BookPagePanel
+                        entries={currentRight}
+                        pageClass="book-page-right"
+                        onSelect={setSelectedCard}
+                      />
                     </div>
                     <div className="book-flip-face book-flip-face-back">
-                      <BookPagePanel cards={targetLeft} ownedMap={ownedMap} pageClass="book-page-left" onSelect={setSelectedCard} />
+                      <BookPagePanel
+                        entries={targetLeft}
+                        pageClass="book-page-left"
+                        onSelect={setSelectedCard}
+                      />
                     </div>
                   </motion.div>
                 )}
@@ -329,16 +369,37 @@ export default function CardBookPage() {
         </motion.div>
       </div>
 
+      {ownedEntries.length === 0 && (
+        <div className="text-center text-sm text-muted-foreground -mt-2">
+          <BookOpen className="w-5 h-5 mx-auto mb-1" />
+          Inventory empty. Buy cards or receive mission rewards to fill your Card Book.
+        </div>
+      )}
+
       {totalSpreads > 1 && (
         <div className="flex items-center justify-center gap-4 pt-1 pb-2">
-          <Button variant="outline" size="icon" onClick={turnPrev} disabled={currentSpread === 0 || !!flipping}>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={turnPrev}
+            disabled={currentSpread === 0 || !!flipping}
+          >
             <ChevronLeft className="w-4 h-4" />
           </Button>
           <div className="text-center">
-            <p className="font-mono-arcade text-sm text-bone">Spread {currentSpread + 1} / {totalSpreads}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">drag to swipe</p>
+            <p className="font-mono-arcade text-sm text-bone">
+              Spread {currentSpread + 1} / {totalSpreads}
+            </p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
+              drag to swipe
+            </p>
           </div>
-          <Button variant="outline" size="icon" onClick={turnNext} disabled={currentSpread >= totalSpreads - 1 || !!flipping}>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={turnNext}
+            disabled={currentSpread >= totalSpreads - 1 || !!flipping}
+          >
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
@@ -347,7 +408,7 @@ export default function CardBookPage() {
       {selectedCard && (
         <CardDetailModal
           card={selectedCard}
-          owned={ownedMap[selectedCard.id] || 0}
+          owned={ownedEntries.find((entry) => entry.card.id === selectedCard.id)?.quantity || 0}
           onClose={() => setSelectedCard(null)}
           teamId={team?.id || ""}
         />

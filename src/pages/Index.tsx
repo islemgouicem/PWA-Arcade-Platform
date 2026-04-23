@@ -99,10 +99,10 @@ export default function Index() {
             </section>
 
             <section className="relative mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-18">
-                <motion.div {...fadeUp}>
+                <motion.div>
                     <div className="grid gap-6 lg:grid-cols-2">
                         <ArcadeCard
-                            size="lg"
+                            size="md"
                             title="Install On iPhone"
                             icon={<Smartphone className="h-full w-full" />}
                             cardHeight="auto"
@@ -127,7 +127,7 @@ export default function Index() {
                         </ArcadeCard>
 
                         <ArcadeCard
-                            size="lg"
+                            size="md"
                             title="Install On Android"
                             icon={<Smartphone className="h-full w-full" />}
                             cardHeight="auto"

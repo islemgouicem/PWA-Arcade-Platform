@@ -31,6 +31,7 @@ interface ZoneEntry {
     zone_id: string;
     status: "pending" | "inside" | "exit_requested" | "exited";
     entry_requested_at: string;
+    current_health?: number;
     mission_zones?: {
         name: string;
         zone_type: string;
@@ -59,14 +60,13 @@ export function ParticipantZoneInterface() {
 
     // Get current zone entries
     const { data: zoneEntries, isLoading } = useQuery({
-        queryKey: ["zone-entries", teamId],
+        queryKey: ["zone-entries", user?.id],
         queryFn: async () => {
-            if (!teamId) return [];
-            const result = await missionsAPI.getZoneEntriesForTeam(teamId);
+            const result = await missionsAPI.getZoneEntriesForTeam();
             if (!result.success) return [];
             return result.entries || [];
         },
-        enabled: !!teamId,
+        enabled: !!user?.id,
         refetchInterval: 5000, // Refresh every 5 seconds
     });
 
@@ -84,7 +84,7 @@ export function ParticipantZoneInterface() {
                     filter: `team_id=eq.${teamId}`,
                 },
                 () => {
-                    queryClient.invalidateQueries({ queryKey: ["zone-entries", teamId] });
+                    queryClient.invalidateQueries({ queryKey: ["zone-entries", user?.id] });
                 }
             )
             .subscribe();
@@ -113,7 +113,7 @@ export function ParticipantZoneInterface() {
         },
         onSuccess: () => {
             toast({ title: "Zone entry requested", description: "Waiting for handler confirmation" });
-            queryClient.invalidateQueries({ queryKey: ["zone-entries", teamId] });
+            queryClient.invalidateQueries({ queryKey: ["zone-entries", user?.id] });
         },
         onError: (err) => {
             toast({
@@ -133,7 +133,7 @@ export function ParticipantZoneInterface() {
         },
         onSuccess: () => {
             toast({ title: "Exit requested", description: "Waiting for handler confirmation" });
-            queryClient.invalidateQueries({ queryKey: ["zone-entries", teamId] });
+            queryClient.invalidateQueries({ queryKey: ["zone-entries", user?.id] });
         },
         onError: (err) => {
             toast({
@@ -189,9 +189,18 @@ export function ParticipantZoneInterface() {
                                             {getStatusBadge(entry.status)}
                                         </CardTitle>
                                         <CardDescription className="mt-1">
-                                            Type: {entry.mission_zones?.zone_type || "N/A"} • Infection Risk:{" "}
-                                            {entry.mission_zones?.infection_rate || 0}%/min
+                                            Type: {entry.mission_zones?.zone_type || "N/A"}
                                         </CardDescription>
+                                        {(entry.status === "inside" || entry.status === "exit_requested") && (
+                                            <div className="text-xs text-muted-foreground mt-2 space-y-1">
+                                                <p>
+                                                    Zone infection rate:{" "}
+                                                    <span className="font-semibold">
+                                                        {entry.mission_zones?.infection_rate || 0}% per minute
+                                                    </span>
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                     {entry.status === "inside" && (
                                         <Button

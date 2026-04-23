@@ -348,7 +348,7 @@
 
   .arcade-inner-panel {
     border: 1px solid hsl(31 71% 47% / 0.28);
-    border-radius: 1.1rem;
+    border-radius: 0;
     background: linear-gradient(
       165deg,
       hsl(359 56% 11% / 0.62),

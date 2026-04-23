@@ -20,11 +20,12 @@ import {
 import { AdminMiniGames } from "@/pages/AdminMiniGamesTab";
 import { AdminMissions } from "@/pages/AdminMissionsTab";
 import { AdminShopTab } from "@/pages/AdminShopTab";
+import { AdminMissionHintsTab } from "@/pages/AdminMissionHintsTab";
 import { AdminSubmissionsView } from "@/pages/FinalSubmissionMission";
 
 export default function AdminDashboard() {
   const [searchParams] = useSearchParams();
-  const validTabs = ["teams", "coffres", "points", "activations", "settings", "announce", "mini-games", "missions", "shop", "analytics"];
+  const validTabs = ["teams", "coffres", "points", "activations", "settings", "announce", "mini-games", "missions", "mission-hints", "shop", "analytics"];
   const tabParam = searchParams.get("tab") || "teams";
   const activeTab = validTabs.includes(tabParam) ? tabParam : "teams";
 
@@ -47,6 +48,7 @@ export default function AdminDashboard() {
           <AdminSubmissionsView />
         </div>
       )}
+      {activeTab === "mission-hints" && <AdminMissionHintsTab />}
       {activeTab === "shop" && <AdminShopTab />}
       {activeTab === "analytics" && <AdminAnalytics />}
     </div>

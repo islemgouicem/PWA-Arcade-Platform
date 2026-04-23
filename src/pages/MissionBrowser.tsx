@@ -34,6 +34,16 @@ interface MissionZone {
 }
 
 export function MissionBrowser() {
+    const renderErrorText = (err: unknown) => {
+        if (err instanceof Error) return err.message;
+        if (typeof err === "string") return err;
+        if (err && typeof err === "object") {
+            const e = err as Record<string, unknown>;
+            return String(e.message || e.error || JSON.stringify(err));
+        }
+        return String(err);
+    };
+
     const { user } = useAuth();
     const { toast } = useToast();
     const queryClient = useQueryClient();
@@ -73,12 +83,12 @@ export function MissionBrowser() {
         }, {});
     }, [missionsData]);
 
-    const { data: zoneEntries } = useQuery({
+    const { data: zoneEntries, error: zoneEntriesError } = useQuery({
         queryKey: ["zone-entries", teamId],
         queryFn: async () => {
             if (!teamId) return [];
             const result = await missionsAPI.getZoneEntriesForTeam(teamId);
-            if (!result.success) return [];
+            if (!result.success) throw new Error(result.error || "Failed to load zone entries");
             return result.entries || [];
         },
         enabled: !!teamId,
@@ -278,10 +288,25 @@ export function MissionBrowser() {
 
     const getMissionZoneState = (missionNumber: number) => {
         const zones = getZonesForMission(missionNumber);
-        const entry = (zoneEntries || []).find((zoneEntry: any) =>
+        const relevant = (zoneEntries || []).filter((zoneEntry: any) =>
             zones.some((zone) => zone.id === zoneEntry.zone_id)
         );
-        return entry;
+        if (!relevant.length) return null;
+
+        const priority = (status: string) => {
+            if (status === "inside") return 3;
+            if (status === "exit_requested") return 2;
+            if (status === "pending") return 1;
+            return 0;
+        };
+
+        return [...relevant].sort((a: any, b: any) => {
+            const p = priority(b.status) - priority(a.status);
+            if (p !== 0) return p;
+            const at = new Date(a.entry_requested_at || 0).getTime();
+            const bt = new Date(b.entry_requested_at || 0).getTime();
+            return bt - at;
+        })[0];
     };
 
     if (isLoading) {
@@ -373,6 +398,13 @@ export function MissionBrowser() {
                                     {showZoneControls && (
                                         <div className="border-t pt-4 space-y-3">
                                             <p className="font-medium">Zones</p>
+                                            {zoneEntriesError && (
+                                                <Alert variant="destructive">
+                                                    <AlertDescription>
+                                                        Failed to refresh zone state: {renderErrorText(zoneEntriesError)}
+                                                    </AlertDescription>
+                                                </Alert>
+                                            )}
 
                                             {zones.length === 0 && (
                                                 <p className="text-sm text-muted-foreground">
@@ -408,6 +440,17 @@ export function MissionBrowser() {
                                                         <Alert>
                                                             <AlertDescription>
                                                                 Entry requested. Waiting for zone handler validation.
+                                                            </AlertDescription>
+                                                        </Alert>
+                                                    )}
+
+                                                    {(zoneState.status === "inside" || zoneState.status === "exit_requested") && (
+                                                        <Alert>
+                                                            <AlertDescription>
+                                                                Zone infection rate:{" "}
+                                                                <span className="font-semibold">
+                                                                    {zoneState?.mission_zones?.infection_rate ?? 0}% per minute
+                                                                </span>
                                                             </AlertDescription>
                                                         </Alert>
                                                     )}

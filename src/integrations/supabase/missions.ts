@@ -2,6 +2,32 @@ import { supabase } from "@/integrations/supabase/client";
 
 const db = supabase as any;
 
+function formatError(err: unknown): string {
+    if (err instanceof Error) {
+        if (err.message && err.message !== "[object Object]") return err.message;
+        const errorWithDetails = err as Error & { details?: unknown; hint?: unknown; code?: unknown };
+        const details = [errorWithDetails.details, errorWithDetails.hint, errorWithDetails.code]
+            .filter(Boolean)
+            .map(String)
+            .join(" | ");
+        return details || "Unknown error";
+    }
+    if (typeof err === "string") return err;
+    if (err && typeof err === "object") {
+        const e = err as Record<string, unknown>;
+        const pieces = [e.message, e.error, e.details, e.hint, e.code]
+            .filter(Boolean)
+            .map(String);
+        if (pieces.length) return pieces.join(" | ");
+        try {
+            return JSON.stringify(err);
+        } catch {
+            return "Unknown error object";
+        }
+    }
+    return String(err);
+}
+
 // ============================================
 // MISSION MANAGEMENT API
 // ============================================
@@ -379,32 +405,27 @@ export async function requestZoneEntry(zone_id: string, password: string) {
         );
 
         if (error) throw error;
+        if (!result || result.error || result.success === false) {
+            throw new Error(formatError(result?.error || result || "Zone entry request failed"));
+        }
         return { success: true, data: result };
     } catch (err) {
-        return { success: false, error: String(err) };
+        return { success: false, error: formatError(err) };
     }
 }
 
 /**
  * Participant: View pending zone entries (for approval/denial)
  */
-export async function getZoneEntriesForTeam(team_id: string) {
+export async function getZoneEntriesForTeam(team_id?: string) {
     try {
-        const { data: entries, error } = await db
-            .from("zone_entries")
-            .select(
-                `
-        id, zone_id, team_id, status, entry_requested_at,
-        mission_zones (name, zone_type, infection_rate)
-      `
-            )
-            .eq("team_id", team_id)
-            .in("status", ["pending", "inside", "exit_requested"]);
-
+        const { data: entries, error } = team_id
+            ? await db.rpc("get_zone_entries_for_team", { p_team_id: team_id })
+            : await db.rpc("get_zone_entries_for_team");
         if (error) throw error;
         return { success: true, entries: entries || [] };
     } catch (err) {
-        return { success: false, error: String(err) };
+        return { success: false, error: formatError(err) };
     }
 }
 
@@ -421,9 +442,12 @@ export async function requestZoneExit(zone_entry_id: string) {
         );
 
         if (error) throw error;
+        if (!result || result.error || result.success === false) {
+            throw new Error(formatError(result?.error || result || "Zone exit request failed"));
+        }
         return { success: true, data: result };
     } catch (err) {
-        return { success: false, error: String(err) };
+        return { success: false, error: formatError(err) };
     }
 }
 
@@ -468,9 +492,12 @@ export async function approveZoneEntry(zone_entry_id: string) {
         );
 
         if (error) throw error;
+        if (!result || result.error || result.success === false) {
+            throw new Error(formatError(result?.error || result || "Approve entry failed"));
+        }
         return { success: true, data: result };
     } catch (err) {
-        return { success: false, error: String(err) };
+        return { success: false, error: formatError(err) };
     }
 }
 
@@ -487,9 +514,12 @@ export async function denyZoneEntry(zone_entry_id: string) {
         );
 
         if (error) throw error;
+        if (!result || result.error || result.success === false) {
+            throw new Error(formatError(result?.error || result || "Deny entry failed"));
+        }
         return { success: true, data: result };
     } catch (err) {
-        return { success: false, error: String(err) };
+        return { success: false, error: formatError(err) };
     }
 }
 
@@ -506,9 +536,12 @@ export async function approveZoneExit(zone_entry_id: string) {
         );
 
         if (error) throw error;
+        if (!result || result.error || result.success === false) {
+            throw new Error(formatError(result?.error || result || "Approve exit failed"));
+        }
         return { success: true, data: result };
     } catch (err) {
-        return { success: false, error: String(err) };
+        return { success: false, error: formatError(err) };
     }
 }
 

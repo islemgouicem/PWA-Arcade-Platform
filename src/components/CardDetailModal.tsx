@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Zap, Swords, Shield, Eye, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -16,8 +16,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/contexts/useAuth";
+import { Link } from "react-router-dom";
 
 interface Card {
   id: string;
@@ -39,7 +47,8 @@ interface Props {
   teamId: string;
 }
 
-const actionTypes = ["recovery", "manipulation", "protection", "hint_single"];
+const HINT_TYPES = new Set(["hint_low", "hint_mid", "hint_high"]);
+const ACTION_TYPES = new Set(["attack", "defense", "healing", "hint_low", "hint_mid", "hint_high"]);
 
 const rarityColors: Record<string, string> = {
   ordinary: "text-rarity-ordinary",
@@ -48,16 +57,25 @@ const rarityColors: Record<string, string> = {
   legendary: "text-rarity-legendary",
 };
 
+type HintMission = { id: string; name: string; sequence_number: number | null };
+
 export default function CardDetailModal({ card, owned, onClose, teamId }: Props) {
-  const { team } = useAuth();
   const queryClient = useQueryClient();
   const [showActivateConfirm, setShowActivateConfirm] = useState(false);
   const [targetTeamId, setTargetTeamId] = useState("");
+  const [missionIdForHint, setMissionIdForHint] = useState("");
   const [activating, setActivating] = useState(false);
   const [activationResult, setActivationResult] = useState<any>(null);
-  const isActionCard = actionTypes.includes(card.card_type);
-  const isHintCard = card.card_type === "hint_single";
-  const needsTarget = ["manipulation"].includes(card.card_type);
+  const [hintModalOpen, setHintModalOpen] = useState(false);
+  const [hintModalPayload, setHintModalPayload] = useState<{
+    text: string;
+    tier: string;
+    missionName: string;
+  } | null>(null);
+
+  const isActionCard = ACTION_TYPES.has(card.card_type);
+  const isHintCard = HINT_TYPES.has(card.card_type);
+  const needsTarget = card.card_type === "attack";
 
   const { data: allTeams = [] } = useQuery({
     queryKey: ["all-teams"],
@@ -66,6 +84,22 @@ export default function CardDetailModal({ card, owned, onClose, teamId }: Props)
       return data || [];
     },
     enabled: needsTarget && owned > 0,
+  });
+
+  const { data: hintMissionOptions = [] } = useQuery({
+    queryKey: ["hint-active-missions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("missions")
+        .select("id, name, sequence_number")
+        .eq("enabled", true)
+        .eq("visible", true)
+        .eq("is_open", true)
+        .order("sequence_number", { ascending: true, nullsFirst: false });
+      if (error) throw error;
+      return (data || []) as HintMission[];
+    },
+    enabled: isHintCard && owned > 0,
   });
 
   const { data: activationOpen = true } = useQuery({
@@ -88,33 +122,77 @@ export default function CardDetailModal({ card, owned, onClose, teamId }: Props)
 
   const activationBlocked = !activationOpen || winnerDeclared;
 
+  useEffect(() => {
+    if (!showActivateConfirm || !isHintCard) return;
+    if (hintMissionOptions.length === 1) {
+      setMissionIdForHint(hintMissionOptions[0].id);
+    } else {
+      setMissionIdForHint("");
+    }
+  }, [showActivateConfirm, isHintCard, hintMissionOptions]);
+
+  const hintMissionLabel = (m: HintMission) =>
+    `${m.sequence_number != null ? `M${m.sequence_number}: ` : ""}${m.name}`;
+
   const handleActivate = async () => {
     setActivating(true);
     try {
+      let pMissionId: string | null = null;
+      if (isHintCard) {
+        if (hintMissionOptions.length === 1) {
+          pMissionId = hintMissionOptions[0].id;
+        } else {
+          pMissionId = missionIdForHint || null;
+        }
+      }
+
       const { data, error } = await supabase.rpc("process_card_activation", {
         p_team_id: teamId,
         p_card_id: card.id,
         p_target_team_id: needsTarget ? targetTeamId || null : null,
+        p_mission_id: pMissionId,
       });
 
       if (error) {
         throw error;
       }
 
+      if (data && data.ok === false && data.code === "MISSION_SELECTION_REQUIRED") {
+        toast.message("Choose which mission this hint applies to.");
+        setShowActivateConfirm(true);
+        setActivating(false);
+        return;
+      }
+
       setActivationResult(data || null);
-      const revealedHint = data?.result?.hint_text;
-      if (data?.action_type === "hint" && revealedHint) {
-        toast.success(`Hint unlocked: ${revealedHint}`);
+
+      if (data?.action_type === "hint" && data?.result?.hint_text) {
+        setHintModalPayload({
+          text: String(data.result.hint_text),
+          tier: String(data.result.tier ?? ""),
+          missionName: String(data.result.mission_name ?? "Mission"),
+        });
+        setHintModalOpen(true);
+        toast.success("Hint saved — review it in the window below or under My Hints.");
       } else {
         toast.success(`${card.name} activated!`);
       }
+
       queryClient.invalidateQueries({ queryKey: ["team-cards"] });
       queryClient.invalidateQueries({ queryKey: ["admin-activations"] });
-    } catch (error: any) {
-      toast.error(error?.message || "Activation failed");
+      queryClient.invalidateQueries({ queryKey: ["my-hint-reveals", teamId] });
+      setShowActivateConfirm(false);
+    } catch (err: any) {
+      toast.error(err?.message || "Activation failed");
     }
     setActivating(false);
   };
+
+  const hintConfirmDisabled =
+    activating ||
+    (needsTarget && !targetTeamId) ||
+    (isHintCard && hintMissionOptions.length > 1 && !missionIdForHint) ||
+    (isHintCard && hintMissionOptions.length === 0);
 
   return (
     <AnimatePresence>
@@ -126,14 +204,13 @@ export default function CardDetailModal({ card, owned, onClose, teamId }: Props)
         onClick={onClose}
       >
         <motion.div
-          initial={{ scale: 0.8, rotateY: 90 }}
-          animate={{ scale: 1, rotateY: 0 }}
-          exit={{ scale: 0.8, opacity: 0 }}
-          transition={{ type: "spring", damping: 20 }}
+          initial={{ scale: 0.98, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.98, opacity: 0 }}
+          transition={{ type: "spring", damping: 22 }}
           className="bg-card border border-border rounded-lg max-w-sm w-full max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Card image */}
           <div className="relative aspect-[4/3] bg-secondary">
             {card.image_url ? (
               <img src={card.image_url} alt={card.name} className="w-full h-full object-cover" />
@@ -159,7 +236,9 @@ export default function CardDetailModal({ card, owned, onClose, teamId }: Props)
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-xl font-display">{card.name}</h2>
-                <p className="text-xs text-muted-foreground font-flavor capitalize">{card.card_type.replace("_", " ")}</p>
+                <p className="text-xs text-muted-foreground font-flavor capitalize">
+                  {card.card_type.replace(/_/g, " ")}
+                </p>
               </div>
               <div className="flex items-center gap-1 text-biohazard font-mono-arcade">
                 <Zap className="w-4 h-4" />
@@ -175,38 +254,33 @@ export default function CardDetailModal({ card, owned, onClose, teamId }: Props)
 
             <p className="text-sm text-foreground/80">{card.description}</p>
 
-            {activationResult?.result?.effect === "hint" && activationResult?.result?.hint_text && (
-              <div className="bg-toxic/10 border border-toxic rounded p-3 space-y-1">
-                <div className="flex items-center gap-2">
-                  <Eye className="w-4 h-4 text-toxic" />
-                  <span className="text-xs font-bold text-toxic">REVEALED HINT</span>
-                </div>
-                <p className="text-sm font-flavor">{activationResult.result.hint_text}</p>
-              </div>
-            )}
-
             {activationResult?.result?.effect && activationResult.result.effect !== "hint" && (
               <div className="bg-secondary rounded p-3 border border-border">
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1">Activation Result</p>
-                <pre className="text-xs whitespace-pre-wrap font-mono-arcade text-foreground/80">{JSON.stringify(activationResult.result, null, 2)}</pre>
+                <pre className="text-xs whitespace-pre-wrap font-mono-arcade text-foreground/80">
+                  {JSON.stringify(activationResult.result, null, 2)}
+                </pre>
               </div>
             )}
 
-            {/* Hint content */}
-            {isHintCard && owned > 0 && (card.hint_content || activationResult?.result?.hint_text) && (
-              <div className="bg-secondary rounded p-3 border border-border">
-                <div className="flex items-center gap-2 mb-2">
-                  <Eye className="w-4 h-4 text-toxic" />
-                  <span className="text-xs font-bold text-toxic">HINT CONTENT</span>
-                </div>
-                <p className="text-sm font-flavor">{activationResult?.result?.hint_text || card.hint_content}</p>
+            {isHintCard && owned > 0 && (
+              <div className="bg-secondary rounded p-3 border border-border flex items-start gap-2">
+                <Eye className="w-4 h-4 text-toxic shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground font-flavor leading-relaxed">
+                  Hint text is never shown only on this card face. When you activate, it opens in a full-screen-safe window
+                  and is permanently listed under{" "}
+                  <Link to="/my-hints" className="text-toxic underline underline-offset-2" onClick={(e) => e.stopPropagation()}>
+                    My Hints
+                  </Link>
+                  .
+                </p>
               </div>
             )}
 
             {isHintCard && owned === 0 && (
               <div className="bg-secondary rounded p-3 border border-border flex items-center gap-2">
                 <Lock className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground font-flavor">Acquire this card to reveal the hint</span>
+                <span className="text-sm text-muted-foreground font-flavor">Acquire this card to use hint activation.</span>
               </div>
             )}
 
@@ -242,7 +316,8 @@ export default function CardDetailModal({ card, owned, onClose, teamId }: Props)
             <AlertDialogTitle className="font-display text-accent">Confirm Activation</AlertDialogTitle>
             <AlertDialogDescription>
               Activate <strong>{card.name}</strong>? This will consume 1 instance and cannot be undone.
-              <br /><br />
+              <br />
+              <br />
               <em className="text-muted-foreground">{card.description}</em>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -256,24 +331,81 @@ export default function CardDetailModal({ card, owned, onClose, teamId }: Props)
                 </SelectTrigger>
                 <SelectContent>
                   {allTeams.map((t: any) => (
-                    <SelectItem key={t.id} value={t.id}>{t.team_name}</SelectItem>
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.team_name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           )}
 
+          {isHintCard && hintMissionOptions.length > 1 && (
+            <div className="py-2 space-y-2">
+              <label className="text-sm font-flavor mb-1 block">Mission for this hint</label>
+              <p className="text-xs text-muted-foreground">
+                More than one mission is open. Pick which mission&apos;s hint pool to draw from.
+              </p>
+              <Select value={missionIdForHint || undefined} onValueChange={setMissionIdForHint}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select mission…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {hintMissionOptions.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {hintMissionLabel(m)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {isHintCard && hintMissionOptions.length === 0 && (
+            <p className="text-xs text-blood font-flavor">No mission is currently open for hints (visible, enabled, and open).</p>
+          )}
+
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleActivate}
-              disabled={activating || (needsTarget && !targetTeamId)}
-            >
-              {activating ? "Activating..." : "Confirm Activation"}
+            <AlertDialogAction disabled={hintConfirmDisabled} onClick={(e) => { e.preventDefault(); void handleActivate(); }}>
+              {activating ? "Activating…" : "Confirm Activation"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={hintModalOpen} onOpenChange={setHintModalOpen}>
+        <DialogContent className="z-[100] max-w-lg w-[calc(100%-2rem)] max-h-[85vh] flex flex-col gap-0 border-border bg-card p-0">
+          <DialogHeader className="p-4 pb-2 shrink-0 border-b border-border">
+            <DialogTitle className="font-display text-toxic flex items-center gap-2">
+              <Eye className="w-5 h-5" />
+              Hint unlocked
+            </DialogTitle>
+            <DialogDescription className="text-left text-xs font-flavor space-y-1">
+              <span className="block text-foreground/90">
+                {hintModalPayload?.missionName}
+                {hintModalPayload?.tier ? (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · Level: <span className="uppercase text-toxic">{hintModalPayload.tier}</span>
+                  </span>
+                ) : null}
+              </span>
+              <span className="block text-muted-foreground">
+                This text is saved under <Link to="/my-hints" className="text-toxic underline">My Hints</Link>.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+            <p className="text-sm leading-relaxed whitespace-pre-wrap font-flavor">{hintModalPayload?.text}</p>
+          </div>
+          <DialogFooter className="p-4 pt-2 border-t border-border shrink-0">
+            <Button type="button" variant="default" className="w-full sm:w-auto" onClick={() => setHintModalOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AnimatePresence>
   );
 }

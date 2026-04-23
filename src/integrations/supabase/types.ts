@@ -153,6 +153,72 @@ export type Database = {
         }
         Relationships: []
       }
+      mission_hint_entries: {
+        Row: {
+          id: string
+          mission_id: string
+          tier: string
+          body: string
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          mission_id: string
+          tier: string
+          body: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          mission_id?: string
+          tier?: string
+          body?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      team_mission_hint_reveals: {
+        Row: {
+          id: string
+          team_id: string
+          mission_id: string
+          mission_hint_entry_id: string
+          card_id: string
+          hint_tier: string
+          hint_body: string
+          activation_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          team_id: string
+          mission_id: string
+          mission_hint_entry_id: string
+          card_id: string
+          hint_tier: string
+          hint_body: string
+          activation_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          team_id?: string
+          mission_id?: string
+          mission_hint_entry_id?: string
+          card_id?: string
+          hint_tier?: string
+          hint_body?: string
+          activation_id?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       coffre_cards: {
         Row: {
           card_id: string
@@ -704,16 +770,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "shopper" | "participant"
       card_rarity: "ordinary" | "rare" | "epic" | "legendary"
-      card_type:
-        | "enhancement"
-        | "manipulation"
-        | "penalizing"
-        | "protection"
-        | "recovery"
-        | "economic"
-        | "hint_single"
-        | "hint_combined"
-        | "mandatory"
+      card_type: "attack" | "defense" | "healing" | "hint_low" | "hint_mid" | "hint_high"
       coffre_type:
         | "game_reward"
         | "quest_reward"
@@ -861,17 +918,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "shopper", "participant"],
       card_rarity: ["ordinary", "rare", "epic", "legendary"],
-      card_type: [
-        "enhancement",
-        "manipulation",
-        "penalizing",
-        "protection",
-        "recovery",
-        "economic",
-        "hint_single",
-        "hint_combined",
-        "mandatory",
-      ],
+      card_type: ["attack", "defense", "healing", "hint_low", "hint_mid", "hint_high"],
       coffre_type: [
         "game_reward",
         "quest_reward",
