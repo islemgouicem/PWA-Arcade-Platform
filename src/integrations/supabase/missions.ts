@@ -339,7 +339,7 @@ export async function completeStaticMission(mission_number: number, password: st
             mission_number,
             error: err,
         });
-        return { success: false, error: String(err) };
+        return { success: false, error: formatError(err) };
     }
 }
 
@@ -658,7 +658,7 @@ export async function getFinalMission() {
         if (error && error.code !== "PGRST116") throw error; // PGRST116 = no rows
         return { success: true, mission };
     } catch (err) {
-        return { success: false, error: String(err) };
+        return { success: false, error: formatError(err) };
     }
 }
 
@@ -683,9 +683,12 @@ export async function submitFinalMission(
         );
 
         if (error) throw error;
+        if (!result || result.error || result.success === false) {
+            throw new Error(formatError(result?.error || result || "Final submission failed"));
+        }
         return { success: true, data: result };
     } catch (err) {
-        return { success: false, error: String(err) };
+        return { success: false, error: formatError(err) };
     }
 }
 
@@ -709,7 +712,7 @@ export async function getFinalSubmissions() {
         if (error) throw error;
         return { success: true, submissions: submissions || [] };
     } catch (err) {
-        return { success: false, error: String(err) };
+        return { success: false, error: formatError(err) };
     }
 }
 

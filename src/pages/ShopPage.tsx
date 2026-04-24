@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ShoppingCart, Coins, EyeOff } from "lucide-react";
+import { ShoppingCart, Coins, EyeOff, Loader2 } from "lucide-react";
 
 const supportedCardTypes = ["attack", "defense", "healing", "hint_low", "hint_mid", "hint_high"];
 
@@ -32,6 +32,7 @@ const availabilityLabel = (card: ShopCard) => {
 export default function ShopPage() {
   const { team } = useAuth();
   const queryClient = useQueryClient();
+  const [purchasingCardId, setPurchasingCardId] = useState<string | null>(null);
 
   const { data: cards = [] } = useQuery({
     queryKey: ["shop-catalogue"],
@@ -62,22 +63,28 @@ export default function ShopPage() {
       toast.error("Team not loaded");
       return;
     }
+    if (purchasingCardId) return;
 
-    const { error } = await supabase.rpc("purchase_shop_card", {
-      p_team_id: team.id,
-      p_card_id: cardId,
-      p_quantity: 1,
-    });
+    setPurchasingCardId(cardId);
+    try {
+      const { error } = await supabase.rpc("purchase_shop_card", {
+        p_team_id: team.id,
+        p_card_id: cardId,
+        p_quantity: 1,
+      });
 
-    if (error) {
-      toast.error(error.message || "Purchase failed");
-      return;
+      if (error) {
+        toast.error(error.message || "Purchase failed");
+        return;
+      }
+
+      toast.success("Card purchased successfully");
+      queryClient.invalidateQueries({ queryKey: ["shop-catalogue"] });
+      queryClient.invalidateQueries({ queryKey: ["team-cards", team.id] });
+      queryClient.invalidateQueries({ queryKey: ["ranking-teams"] });
+    } finally {
+      setPurchasingCardId(null);
     }
-
-    toast.success("Card purchased successfully");
-    queryClient.invalidateQueries({ queryKey: ["shop-catalogue"] });
-    queryClient.invalidateQueries({ queryKey: ["team-cards", team.id] });
-    queryClient.invalidateQueries({ queryKey: ["ranking-teams"] });
   };
 
   return (
@@ -106,6 +113,8 @@ export default function ShopPage() {
           purchasableCards.map((card) => {
             const available = card.shop_visible && card.shop_enabled;
             const canAfford = (team?.points ?? 0) >= card.shop_price;
+            const isThisPurchasing = purchasingCardId === card.id;
+            const anyPurchaseInFlight = purchasingCardId !== null;
 
             return (
               <Card key={card.id} className="overflow-hidden border-border">
@@ -132,8 +141,18 @@ export default function ShopPage() {
                     <span className="text-xs text-muted-foreground capitalize">{card.rarity}</span>
                   </div>
 
-                  <Button className="w-full" disabled={!available || !canAfford} onClick={() => buyCard(card.id)}>
-                    {available ? (canAfford ? "Buy Card" : "Not Enough Points") : <><EyeOff className="w-4 h-4 mr-2" />Unavailable</>}
+                  <Button
+                    className="w-full"
+                    disabled={!available || !canAfford || anyPurchaseInFlight}
+                    onClick={() => buyCard(card.id)}
+                  >
+                    {isThisPurchasing ? (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Purchasing...</>
+                    ) : available ? (
+                      canAfford ? "Buy Card" : "Not Enough Points"
+                    ) : (
+                      <><EyeOff className="w-4 h-4 mr-2" />Unavailable</>
+                    )}
                   </Button>
                 </CardContent>
               </Card>

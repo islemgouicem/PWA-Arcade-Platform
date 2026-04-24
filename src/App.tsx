@@ -109,11 +109,25 @@ function AppRoutes() {
   const { user, loading, isAdmin, isShopper, isMiniGameHolder, isMissionResponsible, isZoneHandler } = useAuth();
   const homePath = resolveHomePath({ isAdmin, isShopper, isMiniGameHolder, isMissionResponsible, isZoneHandler });
 
+  const hasSeenLanding = (() => {
+    try {
+      return localStorage.getItem("arcade_landing_seen") === "1";
+    } catch {
+      return false;
+    }
+  })();
+
+  const rootElement = user && !loading
+    ? <Navigate to={homePath} replace />
+    : hasSeenLanding
+      ? <Navigate to="/auth" replace />
+      : <Index />;
+
   return (
     <Suspense fallback={<RouteLoader />}>
       <Routes>
         <Route path="/auth" element={user && !loading ? <Navigate to={homePath} replace /> : <AuthPage />} />
-        <Route path="/" element={user && !loading ? <Navigate to={homePath} replace /> : <Index />} />
+        <Route path="/" element={rootElement} />
         <Route path="/card-book" element={<ProtectedRoute><ParticipantRoute><CardBookPage /></ParticipantRoute></ProtectedRoute>} />
         <Route path="/my-hints" element={<ProtectedRoute><ParticipantRoute><MyHintsPage /></ParticipantRoute></ProtectedRoute>} />
         <Route path="/gifts" element={<ProtectedRoute><ParticipantRoute><GiftsPage /></ParticipantRoute></ProtectedRoute>} />

@@ -13,6 +13,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import missionsAPI, { type StaticMission } from "@/integrations/supabase/missions";
 import { useAuth } from "@/contexts/useAuth";
@@ -52,6 +70,8 @@ export function MissionBrowser() {
     const [passwordByMission, setPasswordByMission] = useState<Record<number, string>>({});
     const [passwordErrorByMission, setPasswordErrorByMission] = useState<Record<number, string>>({});
     const [mission6File, setMission6File] = useState<File | null>(null);
+    const [showMission6Confirm, setShowMission6Confirm] = useState(false);
+    const [showMission6Success, setShowMission6Success] = useState(false);
 
     const { data: teamId } = useQuery({
         queryKey: ["team-id", user?.id],
@@ -82,6 +102,24 @@ export function MissionBrowser() {
             return acc;
         }, {});
     }, [missionsData]);
+
+    const mission6Id = missionIdsByNumber[6];
+
+    const { data: mission6Submission } = useQuery({
+        queryKey: ["mission-6-submission", teamId, mission6Id],
+        queryFn: async () => {
+            if (!teamId || !mission6Id) return null;
+            const { data, error } = await missionsAPI.supabase
+                .from("mission_submissions")
+                .select("id, submitted_at, document_name")
+                .eq("team_id", teamId)
+                .eq("mission_id", mission6Id)
+                .maybeSingle();
+            if (error) throw error;
+            return data || null;
+        },
+        enabled: !!teamId && !!mission6Id,
+    });
 
     const { data: zoneEntries, error: zoneEntriesError } = useQuery({
         queryKey: ["zone-entries", teamId],
@@ -183,21 +221,29 @@ export function MissionBrowser() {
             queryClient.invalidateQueries({ queryKey: ["static-missions-for-team"] });
         },
         onError: (err, missionNumber) => {
-            const text = String(err);
-            const isWrongPassword = text.includes("INVALID_PASSWORD");
-            const message = isWrongPassword
-                ? WRONG_PASSWORD_MESSAGES[Math.floor(Math.random() * WRONG_PASSWORD_MESSAGES.length)]
-                : text;
-
             console.error("[MissionBrowser] complete static mission failed", {
                 error: err,
                 missionNumber,
             });
 
-            if (isWrongPassword) {
-                setPasswordErrorByMission((prev) => ({ ...prev, [missionNumber]: message }));
-                return;
-            }
+            const rawText = renderErrorText(err);
+            const upper = rawText.toUpperCase();
+            const isWrongPassword =
+                upper.includes("INVALID_PASSWORD") ||
+                upper.includes("WRONG PASSWORD") ||
+                upper.includes("INCORRECT PASSWORD") ||
+                upper.includes("PASSWORD MISMATCH");
+
+            const pickRandom = () =>
+                WRONG_PASSWORD_MESSAGES[
+                    Math.floor(Math.random() * WRONG_PASSWORD_MESSAGES.length)
+                ];
+
+            const message = isWrongPassword
+                ? pickRandom()
+                : rawText && rawText !== "[object Object]"
+                    ? rawText
+                    : pickRandom();
 
             setPasswordErrorByMission((prev) => ({ ...prev, [missionNumber]: message }));
         },
@@ -245,17 +291,36 @@ export function MissionBrowser() {
 
     const finalSubmissionMutation = useMutation({
         mutationFn: async (mission: StaticMission) => {
-            if (!teamId) throw new Error("Team not found");
+            console.log("[Mission6] submit start", {
+                teamId,
+                missionId: mission?.mission_id,
+                file: mission6File?.name,
+                size: mission6File?.size,
+            });
+
+            if (!teamId) throw new Error("Team not found for current user");
+            if (!mission?.mission_id) throw new Error("Mission not loaded");
             if (!mission6File) throw new Error("Select a file first");
 
             const safeFileName = mission6File.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-            const submissionPath = `${teamId}/${mission.mission_id}/${Date.now()}-${safeFileName}`;
+            const submissionPath = `${teamId}/${mission.mission_id}/final-submission-${safeFileName}`;
 
-            const { error: uploadError } = await missionsAPI.supabase.storage
+            console.log("[Mission6] uploading to storage", { submissionPath });
+
+            const uploadRes = await missionsAPI.supabase.storage
                 .from("mission-submissions")
-                .upload(submissionPath, mission6File, { upsert: true });
+                .upload(submissionPath, mission6File, {
+                    upsert: true,
+                    contentType: mission6File.type || "application/octet-stream",
+                });
 
-            if (uploadError) throw uploadError;
+            console.log("[Mission6] storage upload result", uploadRes);
+
+            if (uploadRes.error) {
+                throw new Error(`Upload failed: ${uploadRes.error.message || String(uploadRes.error)}`);
+            }
+
+            console.log("[Mission6] calling submit_final_mission RPC");
 
             const result = await missionsAPI.submitFinalMission(
                 mission.mission_id,
@@ -264,19 +329,47 @@ export function MissionBrowser() {
                 { mission_number: 6 }
             );
 
-            if (!result.success) throw new Error(result.error);
-            return result;
+            console.log("[Mission6] RPC result", result);
+
+            if (!result.success) {
+                throw new Error(`Submission rejected: ${result.error || "unknown backend error"}`);
+            }
+
+            const verify = await missionsAPI.supabase
+                .from("mission_submissions")
+                .select("id, submitted_at, document_name, document_path")
+                .eq("team_id", teamId)
+                .eq("mission_id", mission.mission_id)
+                .maybeSingle();
+
+            console.log("[Mission6] verification read", verify);
+
+            if (verify.error) {
+                throw new Error(`Verification failed: ${verify.error.message}`);
+            }
+            if (!verify.data) {
+                throw new Error(
+                    "Submission did not persist. Please reload and try again; if it repeats, contact admin."
+                );
+            }
+
+            return { ...result, row: verify.data };
         },
         onSuccess: () => {
+            console.log("[Mission6] submit success");
             toast({ title: "Mission 6 submitted" });
             setMission6File(null);
+            setShowMission6Confirm(false);
+            setShowMission6Success(true);
             queryClient.invalidateQueries({ queryKey: ["static-missions-for-team"] });
+            queryClient.invalidateQueries({ queryKey: ["mission-6-submission", teamId, mission6Id] });
+            queryClient.refetchQueries({ queryKey: ["mission-6-submission", teamId, mission6Id] });
         },
         onError: (err) => {
-            console.error("[MissionBrowser] mission 6 submit failed", { error: err });
+            console.error("[Mission6] submit failed", err);
             toast({
                 title: "Final submission failed",
-                description: String(err),
+                description: err instanceof Error ? err.message : String(err),
                 variant: "destructive",
             });
         },
@@ -320,6 +413,7 @@ export function MissionBrowser() {
     }
 
     return (
+        <>
         <div className="space-y-6">
             <div>
                 <h2 className="text-2xl font-bold">Missions 1-6</h2>
@@ -338,7 +432,8 @@ export function MissionBrowser() {
                 <div className="grid gap-4">
                     {visibleMissions.map((mission) => {
                         const missionNumber = mission.mission_number;
-                        const isCompleted = mission.status === "completed";
+                        const isMission6Submitted = missionNumber === 6 && !!mission6Submission;
+                        const isCompleted = mission.status === "completed" || isMission6Submitted;
                         const isJoined = mission.is_joined;
                         const canJoin = mission.can_join && (!activeMission || activeMission.mission_number === missionNumber);
                         const zones = missionNumber <= 2 ? getZonesForMission(missionNumber) : [];
@@ -512,23 +607,66 @@ export function MissionBrowser() {
                                             <p className="text-sm text-muted-foreground">
                                                 Submit your final document using the required format from the mission instructions.
                                             </p>
+                                            {mission6Submission && (
+                                                <Alert>
+                                                    <AlertDescription>
+                                                        Completed on {new Date(mission6Submission.submitted_at).toLocaleString()}.
+                                                    </AlertDescription>
+                                                </Alert>
+                                            )}
                                             <div className="space-y-2">
                                                 <Label htmlFor="mission6-file">Upload file</Label>
                                                 <Input
                                                     id="mission6-file"
                                                     type="file"
+                                                    disabled={!!mission6Submission}
                                                     onChange={(event) => {
                                                         const file = event.target.files?.[0] || null;
                                                         setMission6File(file);
                                                     }}
                                                 />
                                             </div>
-                                            <Button
-                                                onClick={() => finalSubmissionMutation.mutate(mission)}
-                                                disabled={finalSubmissionMutation.isPending || !mission6File}
-                                            >
-                                                {finalSubmissionMutation.isPending ? "Submitting..." : "Submit Mission 6"}
-                                            </Button>
+                                            {mission6Submission ? (
+                                                <Button disabled variant="secondary">
+                                                    Completed
+                                                </Button>
+                                            ) : (
+                                                <AlertDialog open={showMission6Confirm} onOpenChange={setShowMission6Confirm}>
+                                                    <Button
+                                                        onClick={() => {
+                                                            if (!mission6File) {
+                                                                toast({
+                                                                    title: "Missing file",
+                                                                    description: "Please upload your final document first.",
+                                                                    variant: "destructive",
+                                                                });
+                                                                return;
+                                                            }
+                                                            setShowMission6Confirm(true);
+                                                        }}
+                                                        disabled={finalSubmissionMutation.isPending || !mission6File}
+                                                    >
+                                                        {finalSubmissionMutation.isPending ? "Submitting..." : "Submit Final Document"}
+                                                    </Button>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Final confirmation</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                Are you sure you want to submit your final document? This action is final and cannot be modified.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction
+                                                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                                onClick={() => finalSubmissionMutation.mutate(mission)}
+                                                            >
+                                                                Confirm Submission
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            )}
                                         </div>
                                     )}
 
@@ -556,6 +694,20 @@ export function MissionBrowser() {
                 </div>
             )}
         </div>
+        <Dialog open={showMission6Success} onOpenChange={setShowMission6Success}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Congratulations</DialogTitle>
+                    <DialogDescription>
+                        Your final submission has been received successfully.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <Button onClick={() => setShowMission6Success(false)}>Close</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        </>
     );
 }
 

@@ -24,16 +24,15 @@ const CARD_LABEL: Record<CardType, string> = {
 };
 
 const hasPercent = (cardType: string) => cardType === "attack" || cardType === "healing";
-const hasDuration = (cardType: string) => cardType === "defense";
 
 export function AdminShopTab() {
   const queryClient = useQueryClient();
   const [drafts, setDrafts] = useState<Record<string, any>>({});
 
-  const { data: rawCards = [] } = useQuery({
+  const { data: rawCards = [] } = useQuery<any[]>({
     queryKey: ["admin-shop-cards"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("cards")
         .select(
           "id, name, card_type, rarity, sort_order, shop_price, shop_visible, shop_enabled, reward_enabled, effect_percent, effect_duration_minutes, hint_level",
@@ -42,16 +41,16 @@ export function AdminShopTab() {
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return data || [];
+      return (data as any[]) || [];
     },
   });
 
   const cardsByType = useMemo(() => {
     const map = new Map<CardType, any>();
     for (const cardType of CARD_ORDER) {
-      const first = rawCards.find((c: any) => c.card_type === cardType);
+      const first = (rawCards as any[]).find((c: any) => c.card_type === cardType);
       if (first) {
-        map.set(cardType, { ...first, ...(drafts[first.id] || {}) });
+        map.set(cardType, { ...(first as Record<string, any>), ...(drafts[first.id] || {}) });
       }
     }
     return map;
@@ -62,16 +61,14 @@ export function AdminShopTab() {
     if (!card) return;
     const draft = drafts[card.id] || {};
 
-    const { error } = await supabase.rpc("admin_set_card_shop_config", {
+    const { error } = await (supabase as any).rpc("admin_set_card_shop_config", {
       p_card_id: card.id,
       p_shop_price: draft.shop_price ?? null,
       p_shop_visible: draft.shop_visible ?? null,
       p_shop_enabled: true,
       p_reward_enabled: cardType.startsWith("hint_") ? false : card.reward_enabled ?? true,
       p_effect_percent: hasPercent(card.card_type) ? (draft.effect_percent ?? card.effect_percent ?? 0) : 0,
-      p_effect_duration_minutes: hasDuration(card.card_type)
-        ? (draft.effect_duration_minutes ?? card.effect_duration_minutes ?? 0)
-        : 0,
+      p_effect_duration_minutes: 0,
       p_hint_level: card.hint_level ?? 1,
       p_linked_mission_id: null,
     });
@@ -107,7 +104,7 @@ export function AdminShopTab() {
 
       <p className="text-sm text-muted-foreground max-w-3xl">
         Static admin controls for exactly 6 card types: Attack, Defense, Healing, Hint Low, Hint Mid, Hint High.
-        Admin can edit price and visibility for each type, plus attack/heal percentages and defense duration.
+        Admin can edit price and visibility for each type, plus attack/heal percentages. Defense is passive and no longer uses duration.
       </p>
 
       {missingTypes.length > 0 && (
@@ -166,16 +163,6 @@ export function AdminShopTab() {
                     </div>
                   )}
 
-                  {hasDuration(cardType) && (
-                    <div>
-                      <Label className="text-[10px]">Defense duration (minutes)</Label>
-                      <Input
-                        type="number"
-                        value={String(card.effect_duration_minutes ?? 0)}
-                        onChange={(e) => updateDraft(card.id, { effect_duration_minutes: Number(e.target.value) })}
-                      />
-                    </div>
-                  )}
                 </div>
 
                 <div className="flex items-center gap-2 text-[10px]">

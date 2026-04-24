@@ -367,6 +367,35 @@ export function FinalSubmissionMission() {
 export function AdminSubmissionsView() {
     const queryClient = useQueryClient();
 
+    const openDocument = async (documentPath: string) => {
+        const { data, error } = await missionsAPI.supabase.storage
+            .from("mission-submissions")
+            .createSignedUrl(documentPath, 60);
+        if (error || !data?.signedUrl) {
+            toast.error(error?.message || "Failed to open document");
+            return;
+        }
+        window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    };
+
+    const downloadDocument = async (documentPath: string, documentName: string) => {
+        const { data, error } = await missionsAPI.supabase.storage
+            .from("mission-submissions")
+            .createSignedUrl(documentPath, 60);
+        if (error || !data?.signedUrl) {
+            toast.error(error?.message || "Failed to generate download link");
+            return;
+        }
+        const link = document.createElement("a");
+        link.href = data.signedUrl;
+        link.download = documentName || "submission";
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    };
+
     // Get all final submissions
     const { data: submissions, isLoading } = useQuery({
         queryKey: ["admin-submissions"],
@@ -376,6 +405,31 @@ export function AdminSubmissionsView() {
             return result.submissions || [];
         },
     });
+
+    const { data: teams = [] } = useQuery({
+        queryKey: ["admin-submission-teams"],
+        queryFn: async () => {
+            const { data, error } = await missionsAPI.supabase
+                .from("teams")
+                .select("id, team_name")
+                .order("team_name", { ascending: true });
+            if (error) throw error;
+            return data || [];
+        },
+    });
+
+    const { data: finalMission } = useQuery({
+        queryKey: ["admin-final-mission-id"],
+        queryFn: async () => {
+            const result = await missionsAPI.getFinalMission();
+            if (!result.success) throw new Error(result.error);
+            return result.mission;
+        },
+    });
+
+    const submissionByTeam = new Map<string, any>(
+        (submissions || []).map((sub: any) => [sub.team_id, sub]),
+    );
 
     return (
         <div className="space-y-6">
@@ -392,38 +446,50 @@ export function AdminSubmissionsView() {
                         <p className="text-muted-foreground">Loading submissions...</p>
                     </CardContent>
                 </Card>
-            ) : !submissions?.length ? (
+            ) : !teams?.length ? (
                 <Card>
                     <CardContent className="pt-6">
-                        <p className="text-muted-foreground">No submissions yet</p>
+                        <p className="text-muted-foreground">No teams found</p>
                     </CardContent>
                 </Card>
             ) : (
                 <div className="space-y-3">
-                    {submissions.map((sub: any) => (
-                        <Card key={sub.id}>
+                    {teams.map((team: any) => {
+                        const sub = submissionByTeam.get(team.id);
+                        return (
+                        <Card key={team.id}>
                             <CardContent className="pt-6">
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-start">
                                         <div>
-                                            <h4 className="font-semibold">{sub.teams?.team_name}</h4>
+                                            <h4 className="font-semibold">{team.team_name}</h4>
                                             <p className="text-xs text-muted-foreground">
-                                                Mission: {sub.missions?.name}
+                                                Mission: {finalMission?.name || "Final Submission"}
                                             </p>
                                         </div>
-                                        <Badge variant="default">
-                                            {new Date(sub.submitted_at).toLocaleDateString()}
+                                        <Badge variant={sub ? "default" : "secondary"}>
+                                            {sub ? "Submitted" : "Pending"}
                                         </Badge>
                                     </div>
 
-                                    <div className="bg-secondary p-3 rounded text-xs">
-                                        <p className="font-medium">Document:</p>
-                                        <p className="text-muted-foreground">
-                                            {sub.document_name}
+                                    <div className="bg-secondary p-3 rounded text-xs space-y-1">
+                                        <p>
+                                            <span className="font-medium">Submission time: </span>
+                                            <span className="text-muted-foreground">
+                                                {sub?.submitted_at
+                                                    ? new Date(sub.submitted_at).toLocaleString()
+                                                    : "—"}
+                                            </span>
+                                        </p>
+                                        <p>
+                                            <span className="font-medium">Document: </span>
+                                            <span className="text-muted-foreground">
+                                                {sub?.document_name || "—"}
+                                            </span>
                                         </p>
                                     </div>
 
-                                    {sub.submission_data?.notes && (
+                                    {sub?.submission_data?.notes && (
                                         <div className="bg-secondary p-3 rounded text-xs">
                                             <p className="font-medium">Notes:</p>
                                             <p className="text-muted-foreground">
@@ -431,10 +497,27 @@ export function AdminSubmissionsView() {
                                             </p>
                                         </div>
                                     )}
+                                    <div className="flex gap-2">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={!sub?.document_path}
+                                            onClick={() => openDocument(sub.document_path)}
+                                        >
+                                            Open
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            disabled={!sub?.document_path}
+                                            onClick={() => downloadDocument(sub.document_path, sub.document_name)}
+                                        >
+                                            Download
+                                        </Button>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
-                    ))}
+                    )})}
                 </div>
             )}
         </div>

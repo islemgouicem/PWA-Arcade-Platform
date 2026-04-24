@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import {
   Book, Gift, Trophy, Shield, Store,
   Menu, X, LogOut, Megaphone, Users, Package,
-  Zap, AlertTriangle, Settings, Bell, Activity, Gamepad2, ClipboardCheck, Lightbulb
+  Zap, AlertTriangle, Settings, Bell, Activity, Gamepad2, ClipboardCheck, Lightbulb, RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -68,7 +68,31 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { unreadCount, notifications, markAsRead } = useNotifications();
   const { announcements, dismiss } = useAnnouncements();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const location = useLocation();
+
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      // Best-effort: clear any service-worker HTTP caches so the reload pulls
+      // a fresh app shell and fresh API responses. This is safe if the browser
+      // has no SW at all (the check short-circuits).
+      if ("caches" in window) {
+        try {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        } catch {
+          // Cache deletion is optional; ignore failures.
+        }
+      }
+    } finally {
+      // Hard reload: re-fetches index.html, re-runs the React bootstrap,
+      // re-initializes every provider and context, and pulls fresh data
+      // from the backend. Same behavior as pressing the browser's reload.
+      window.location.reload();
+    }
+  };
   const healthPercentRaw = Math.max(0, Math.min(100, Number(team?.health_status ?? 100)));
   const healthPercent = Math.round(healthPercentRaw);
   const healthHue = Math.round((healthPercentRaw / 100) * 120);
@@ -132,6 +156,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {giftNotifications > 0 && (
             <span className="bg-accent text-accent-foreground text-[10px] px-1.5 py-0.5 rounded-full">{giftNotifications}</span>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            aria-label="Refresh"
+            title="Refresh data"
+          >
+            <RefreshCw className={`w-5 h-5 ${refreshing ? "animate-spin" : ""}`} />
+          </Button>
         </div>
       </header>
 

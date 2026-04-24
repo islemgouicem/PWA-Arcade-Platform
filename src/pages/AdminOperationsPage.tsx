@@ -29,9 +29,8 @@ export default function AdminOperationsPage() {
 
     const numericSettings = useMemo(
         () => [
-            { key: "health_base_decrease_rate_per_minute", label: "Base Health Decrease (%/min)", value: getSetting("health_base_decrease_rate_per_minute", 1) },
-            { key: "suspension_duration_minutes", label: "Suspension Duration (minutes)", value: getSetting("suspension_duration_minutes", 10) },
             { key: "health_zero_penalty_points", label: "Penalty Points (HS=0)", value: getSetting("health_zero_penalty_points", 50) },
+            { key: "health_restore_percentage", label: "Health Restore (HS=0) %", value: getSetting("health_restore_percentage", 30) },
         ],
         [settings],
     );

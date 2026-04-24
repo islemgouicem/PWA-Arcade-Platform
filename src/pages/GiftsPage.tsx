@@ -35,10 +35,6 @@ export default function GiftsPage() {
     if (!team) return;
 
     setOpeningCoffreId(coffreId);
-    setAnimPhase("shake");
-
-    // Wait for shake animation
-    await new Promise(r => setTimeout(r, 1500));
 
     const { data: openResult, error: openError } = await (supabase as any).rpc("open_coffre_atomic", {
       p_coffre_id: coffreId,
@@ -106,11 +102,11 @@ export default function GiftsPage() {
                 key={coffre.id}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className={`bg-card border border-border rounded-lg p-4 ${openingCoffreId === coffre.id && animPhase === "shake" ? "animate-coffre-shake" : ""}`}
+                className="bg-card border border-border rounded-lg p-4"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="font-display text-biohazard">{coffre.coffre_type.replace("_", " ").toUpperCase()}</span>
+                    <span className="font-display text-biohazard">{(coffre.coffre_type || "coffre").replace(/_/g, " ").toUpperCase()}</span>
                     {coffre.source_label && (
                       <p className="text-xs text-muted-foreground font-flavor">{coffre.source_label}</p>
                     )}
@@ -141,7 +137,7 @@ export default function GiftsPage() {
             {openedCoffres.map((coffre: any) => (
               <div key={coffre.id} className="bg-card border border-border rounded-lg p-3 opacity-70">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-flavor">{coffre.coffre_type.replace("_", " ")}</span>
+                  <span className="text-sm font-flavor">{(coffre.coffre_type || "coffre").replace(/_/g, " ")}</span>
                   <span className="text-xs text-muted-foreground">{new Date(coffre.opened_at || coffre.created_at).toLocaleDateString()}</span>
                 </div>
                 <div className="flex gap-1 mt-2 flex-wrap">

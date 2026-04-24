@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { motion, easeOut } from "framer-motion";
 import { ArrowRight, CheckCircle2, Share2, Smartphone, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -25,6 +26,14 @@ const androidSteps = [
 ];
 
 export default function Index() {
+    useEffect(() => {
+        try {
+            localStorage.setItem("arcade_landing_seen", "1");
+        } catch {
+            // storage may be blocked (incognito / PWA restrictions); safe to ignore.
+        }
+    }, []);
+
     return (
         <div className="arcade-landing text-[#77867F]">
             <section className="relative overflow-hidden border-b border-[#CB7822]/25">

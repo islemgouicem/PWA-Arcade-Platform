@@ -48,7 +48,7 @@ interface Props {
 }
 
 const HINT_TYPES = new Set(["hint_low", "hint_mid", "hint_high"]);
-const ACTION_TYPES = new Set(["attack", "defense", "healing", "hint_low", "hint_mid", "hint_high"]);
+const ACTION_TYPES = new Set(["attack", "healing", "hint_low", "hint_mid", "hint_high"]);
 
 const rarityColors: Record<string, string> = {
   ordinary: "text-rarity-ordinary",
@@ -254,12 +254,26 @@ export default function CardDetailModal({ card, owned, onClose, teamId }: Props)
 
             <p className="text-sm text-foreground/80">{card.description}</p>
 
-            {activationResult?.result?.effect && activationResult.result.effect !== "hint" && (
+            {activationResult?.result?.effect === "attack" && (
+              <div className="bg-secondary rounded p-3 border border-border space-y-1">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Attack Result</p>
+                {activationResult.result.blocked ? (
+                  <p className="text-sm font-flavor text-toxic">Attack blocked.</p>
+                ) : (
+                  <p className="text-sm font-flavor text-blood">
+                    Attack successful. Damage applied:{" "}
+                    <span className="font-bold">{Number(activationResult.result.damage ?? 0)}%</span>.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {activationResult?.result?.effect === "healing" && (
               <div className="bg-secondary rounded p-3 border border-border">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1">Activation Result</p>
-                <pre className="text-xs whitespace-pre-wrap font-mono-arcade text-foreground/80">
-                  {JSON.stringify(activationResult.result, null, 2)}
-                </pre>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1">Healing Result</p>
+                <p className="text-sm font-flavor text-toxic">
+                  Health restored: <span className="font-bold">{Number(activationResult.result.amount ?? 0)}%</span>.
+                </p>
               </div>
             )}
 
@@ -281,6 +295,15 @@ export default function CardDetailModal({ card, owned, onClose, teamId }: Props)
               <div className="bg-secondary rounded p-3 border border-border flex items-center gap-2">
                 <Lock className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground font-flavor">Acquire this card to use hint activation.</span>
+              </div>
+            )}
+
+            {card.card_type === "defense" && (
+              <div className="bg-secondary rounded p-3 border border-border flex items-start gap-2">
+                <Shield className="w-4 h-4 text-toxic shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground font-flavor leading-relaxed">
+                  Defense is passive. If attacked while owning at least one Defense card, one Defense card is consumed automatically to fully block damage.
+                </p>
               </div>
             )}
 
