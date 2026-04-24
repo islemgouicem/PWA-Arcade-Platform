@@ -43,6 +43,21 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        // Card artwork is large (2-4 MB each) and loaded on demand. Keep it
+        // out of the precache so the PWA install stays lightweight; the
+        // browser HTTP cache handles repeat views fine.
+        globIgnores: [
+          "**/attack.png",
+          "**/defend.png",
+          "**/heal.png",
+          "**/hintlow.png",
+          "**/hintmid.png",
+          "**/hinthigh.png",
+        ],
+        // Safety net: allow up to 5 MiB per file if we ever precache big
+        // assets explicitly. Prevents a single oversized file from failing
+        // the whole build.
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
       devOptions: {
         enabled: true,
