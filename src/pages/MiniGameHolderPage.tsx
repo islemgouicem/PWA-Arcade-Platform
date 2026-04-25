@@ -163,17 +163,13 @@ export default function MiniGameHolderPage() {
             };
         });
 
-        if (reviewItems.some((item) => item.ranking <= 0)) {
-            toast.error("All joined teams must have a ranking before review");
+        if (reviewItems.some((item) => item.ranking < 0 || Number.isNaN(item.ranking))) {
+            toast.error("Ranking must be zero or a positive number");
             return;
         }
 
-        const uniqueRanks = new Set(reviewItems.map((item) => item.ranking));
-        if (uniqueRanks.size !== reviewItems.length) {
-            toast.error("Duplicate ranks are not allowed");
-            return;
-        }
-
+        // Ties are allowed on purpose: multiple teams can share the same rank,
+        // and a team with rank 0 simply earns 0 points.
         setPendingItems(reviewItems.sort((a, b) => a.ranking - b.ranking));
         setIsReviewing(true);
     };

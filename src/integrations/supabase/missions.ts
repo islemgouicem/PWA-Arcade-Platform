@@ -333,13 +333,39 @@ export async function completeStaticMission(mission_number: number, password: st
             p_password: password,
         });
         if (error) throw error;
-        return { success: true, data };
+
+        // Brute-force protection: the RPC now returns wrong-password and lockout
+        // responses as JSON (instead of RAISE EXCEPTION) so failed-attempt logs
+        // and admin notifications survive the transaction.
+        if (data && typeof data === "object" && (data as { error?: string }).error) {
+            const payload = data as {
+                error: string;
+                remaining_seconds?: number;
+                attempts_in_window?: number;
+                max_attempts?: number;
+                lockout_minutes?: number;
+                window_minutes?: number;
+            };
+            return {
+                success: false as const,
+                error: payload.error,
+                code: payload.error,
+                remaining_seconds: payload.remaining_seconds,
+                attempts_in_window: payload.attempts_in_window,
+                max_attempts: payload.max_attempts,
+                lockout_minutes: payload.lockout_minutes,
+                window_minutes: payload.window_minutes,
+                data: payload,
+            };
+        }
+
+        return { success: true as const, data };
     } catch (err) {
         console.error("[missions.completeStaticMission] failed", {
             mission_number,
             error: err,
         });
-        return { success: false, error: formatError(err) };
+        return { success: false as const, error: formatError(err) };
     }
 }
 

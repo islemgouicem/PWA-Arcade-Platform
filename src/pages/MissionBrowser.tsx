@@ -203,7 +203,17 @@ export function MissionBrowser() {
             const password = passwordByMission[missionNumber] || "";
             if (!password.trim()) throw new Error("Password is required");
             const result = await missionsAPI.completeStaticMission(missionNumber, password.trim());
-            if (!result.success) throw new Error(result.error);
+            if (!result.success) {
+                const err = new Error(result.error || "Submission failed") as Error & {
+                    code?: string;
+                    remaining_seconds?: number;
+                    lockout_minutes?: number;
+                };
+                err.code = (result as { code?: string }).code;
+                err.remaining_seconds = (result as { remaining_seconds?: number }).remaining_seconds;
+                err.lockout_minutes = (result as { lockout_minutes?: number }).lockout_minutes;
+                throw err;
+            }
             return result;
         },
         onSuccess: (result, missionNumber) => {
@@ -226,9 +236,29 @@ export function MissionBrowser() {
                 missionNumber,
             });
 
+            const typed = err as Error & {
+                code?: string;
+                remaining_seconds?: number;
+                lockout_minutes?: number;
+            };
             const rawText = renderErrorText(err);
             const upper = rawText.toUpperCase();
+            const code = (typed.code || "").toUpperCase();
+
+            if (code === "LOCKED_OUT" || upper.includes("LOCKED_OUT")) {
+                const secs = Math.max(1, Math.ceil(typed.remaining_seconds ?? 0));
+                const formatted = secs >= 60
+                    ? `${Math.floor(secs / 60)}m ${secs % 60}s`
+                    : `${secs}s`;
+                setPasswordErrorByMission((prev) => ({
+                    ...prev,
+                    [missionNumber]: `Too many wrong attempts. Please wait ${formatted} before trying again.`,
+                }));
+                return;
+            }
+
             const isWrongPassword =
+                code === "INVALID_PASSWORD" ||
                 upper.includes("INVALID_PASSWORD") ||
                 upper.includes("WRONG PASSWORD") ||
                 upper.includes("INCORRECT PASSWORD") ||
